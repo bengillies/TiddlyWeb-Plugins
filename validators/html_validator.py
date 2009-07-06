@@ -49,10 +49,6 @@ ALLOWED_ATTRIBUTES=[
     'alt',
     'title'
 ] 
-RESERVED_TITLES=[
-    'MarkupPreHead',
-    'MarkupPostBody'
-] 
 
 def sanitise_html(value):                                          
     
