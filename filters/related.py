@@ -21,7 +21,7 @@ def compare_text(source, test):
     source_words = re.split('\W',source)
     count = 0
     for word in source_words:
-        if word in test:
+        if word.lower() in test.lower():
             count += 1
             
     return count
