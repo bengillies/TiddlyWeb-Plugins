@@ -14,8 +14,11 @@ from tiddlyweb.filters import FILTER_PARSERS, parse_for_filters, recursive_filte
 
 import logging
 
+import re
+
+
 def compare_text(source, test):
-    source_words = source.split(' ')
+    source_words = re.split('\W',source)
     count = 0
     for word in source_words:
         if word in test:
@@ -40,6 +43,10 @@ def compare_fields(source, test, match):
         pass
             
     return count
+                         
+ATTRIBUTE_SELECTOR={
+    'tags': compare_tags,
+    }
 
 def match_related_articles(title, matches, tiddlers): 
     def empty_generator(): return ;yield 'never'
@@ -54,18 +61,14 @@ def match_related_articles(title, matches, tiddlers):
     for tiddler in tiddlers: 
         count = 0
         for match in matches:
-            if match == 'title':
-                count += compare_text(source_tiddler.title, tiddler.title)
-            elif match == 'modifier':
-                count += compare_text(source_tiddler.modifier, tiddler.modifier)
-            elif match == 'tags':
-                count += compare_tags(source_tiddler.tags, tiddler.tags)
-            elif match == 'text':
-                count += compare_text(source_tiddler.text, tiddler.text)
-            elif match == 'bag':
-                count += compare_text(source_tiddler.bag, tiddler.bag)
-            else:
-                count += compare_fields(source_tiddler.fields, tiddler.fields, match)            
+            try:
+                source = getattr(source_tiddler, match)
+                test = getattr(tiddler, match)
+                test_func = ATTRIBUTE_SELECTOR.get(match, compare_text)
+                count += test_func(source, test)
+            except AttributeError:
+                count += compare_fields(source_tiddler.fields, tiddler.fields, match)
+                            
         if count > 0 and source_tiddler.title != tiddler.title:
             sort_set.append([tiddler,count])
     
