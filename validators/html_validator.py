@@ -71,9 +71,10 @@ def sanitise_html(value):
                      if attr in ALLOWED_ATTRIBUTES]
     return soup.renderContents().decode('utf8')
 
-def sanitise_xss(tiddler,environ):     
-    tiddler.fields = map(sanitise_html,tiddler.fields)
-    tiddler.text = sanitise_html(tiddler.text)           
+def sanitise_xss(tiddler,environ):
+    for field,value in tiddler.fields.iteritems():     
+        tiddler.fields[field] = sanitise_html(value)
+    tiddler.text = sanitise_html(tiddler.text)      
     tiddler.tags = map(sanitise_html,tiddler.tags)
     tiddler.title = sanitise_html(tiddler.title)
 
