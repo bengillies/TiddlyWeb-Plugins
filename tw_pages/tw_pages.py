@@ -1,11 +1,22 @@
 """
-todo - dynamicise recipes and urls *today*
+todo - dynamicise recipes and urls
      - implement other functions in the serializer (bag_as, recipe_as, etc)
-     - allow overriding template files specified in plugins/serializers
-     - dynamicise page titles *today*
-     - script/stylesheet inclusion - allow set flag to turn off default at root serializer
-     - choose how to display the data (allow custom renderers to be specified)
-     - tiddler-ify config data and template data
+     - allow overriding template files specified in plugins/serializers (maybe in the url tiddlers)
+     - dynamicise page titles
+     - script/stylesheet inclusion - add a "defaults" tiddler and provide a list for disabling it on certain tiddlers
+     
+Template tiddler format:
+
+    tiddler.title = extension_type
+    tiddler.type = content type
+    tiddler.fields = sub-templates to include in template. Formatted as follows:
+    
+                tiddler.fields['plugin_name'] = 'recipe to use on plugin'
+                where recipe is the name of the recipe
+
+    tiddler.text = the template itself. layed out using Jinja2 templating syntax. 
+    (nb - variables accessible within the template are: 
+        base (the base set of tiddlers); and extra (a dict containing named sub-templates specified))
 """
 
 from tiddlyweb.model.bag import Bag
@@ -18,23 +29,24 @@ from tiddlyweb import control
 from tiddlyweb.filters import parse_for_filters, recursive_filter
 
 import logging
-from jinja2 import Environment, FileSystemLoader   
+from jinja2 import Environment, FileSystemLoader, Template   
 from tiddlyweb.serializations.html import Serialization as HTMLSerialization
 from tiddlyweb.serializer import Serializer
 from tiddlywebplugins import replace_handler
 
-template_env = Environment(loader=FileSystemLoader('./templates/')) 
+template_env = Environment(loader=FileSystemLoader('./templates/'))
+BAG_OF_TEMPLATES = "templates"
 
 def get_recipe(environ, recipe):
     store = environ['tiddlyweb.store']
-    if type(recipe) == str:
+    if type(recipe) in [str,unicode]:
         myRecipe = Recipe(recipe)
         myRecipe = store.get(myRecipe)
     else:
         myRecipe = Recipe('myRecipe')
         myRecipe.set_recipe(recipe)
         myRecipe.store = store
-        
+    
     return myRecipe
 
 def get_server_prefix(environ):
@@ -68,7 +80,10 @@ def generate_serializer(environ, plugin_name, plugins, base_tiddlers):
                 plugin_html[template] = pass_through_external_serializer(environ, template, plugin_tiddlers)
     server_prefix = get_server_prefix(environ)
     try:
-        template = template_env.get_template(environ['tiddlyweb.config']['tw_pages_serializers'][plugin_name]['template'])
+        #if type(environ['tiddlyweb.config']['tw_pages_serializers'][plugin_name]['template']) == unicode:
+        template = template_env.from_string(environ['tiddlyweb.config']['tw_pages_serializers'][plugin_name]['template'])
+        #else:
+        #    template = template_env.get_template(environ['tiddlyweb.config']['tw_pages_serializers'][plugin_name]['template'])
         content = template.render(base=base_tiddlers, extra=plugin_html, prefix=server_prefix)
     except KeyError:
         content = pass_through_external_serializer(environ, plugin_name, base_tiddlers)
@@ -152,12 +167,31 @@ def init(config_in):
     define serializers
     """
     config = config_in
+    #set up the initial environ variables
+    config['tw_pages_serializers'] = {}
+    
+    #get the templates out of the store
+    store = Store(config['server_store'][0], {'tiddlyweb.config':config})
+    bag = Bag(BAG_OF_TEMPLATES)
+    bag = store.get(bag)
+    tiddlers = control.get_tiddlers_from_bag(bag)
+    
     for url in config['tw_pages_urls']:
         replace_handler(config['selector'], url, dict(GET=get_template))
         config['selector'].add(url, GET=get_template)        
        
-    for extension in config['tw_pages_serializers']:
-        extensionType = config['tw_pages_serializers'][extension]['type']
-        config['extension_types'][extension] = extensionType
+#    for extension in config['tw_pages_serializers']:
+#        extensionType = config['tw_pages_serializers'][extension]['type']
+#        config['extension_types'][extension] = extensionType
+#        config['serializers'][extensionType] = ['tw_pages','text/html; charset=UTF-8']
+
+    for tiddler in tiddlers:
+        extensionType = tiddler.type or 'text/html'
+        config['extension_types'][tiddler.title] = extensionType
         config['serializers'][extensionType] = ['tw_pages','text/html; charset=UTF-8']
-    
+        logging.debug('tiddler title is qwerty: %s' % tiddler.title)
+        config['tw_pages_serializers'][tiddler.title] = {
+            'type': extensionType,
+            'plugins': tiddler.fields,
+            'template': tiddler.text
+        }
