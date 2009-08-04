@@ -1,9 +1,5 @@
 """
-todo - dynamicise recipes --- waiting on Chris Dent to implement dynamiciseificaition (ticket on trac)
-     - implement other functions in the serializer (bag_as, recipe_as, etc)
-     - allow overriding template files specified in plugins/serializers (maybe in the url tiddlers)
-     - refactor generate_tiddler and list_tiddlers
-     - script/stylesheet inclusion - add a "defaults" tiddler and provide a list for disabling it on certain tiddlers
+TiddlyWebPages
      
 Template tiddler format:
 
@@ -15,29 +11,24 @@ Template tiddler format:
                 where recipe is the name of the recipe
 
     tiddler.text = the template itself. layed out using Jinja2 templating syntax. 
-    (nb - variables accessible within the template are: 
-        base (the base set of tiddlers); and extra (a dict containing named sub-templates specified))
+    (nb - variables accessible within the template are: base (the base set of tiddlers); 
+     and extra (a dict containing named sub-templates specified))
+    
+    There is a special template called "Default", which acts as a wrapper, wrapping up other templates 
+    inside <html>/<body> tags, etc and providing a place to add scripts, stylesheets, rss feeds, and 
+    whatever else you want to add to each page. It has two additional fields within it - single_tiddler
+    and content_list: These let you specify which template to load up when you visit a single tiddler, 
+    or the tiddlers in a bag/recipe.
         
 URL pattern matching:
 
-    Custom URLs can be extended by passing in bag names, recipe names, and tiddler names.
-    These can then be passed into custom recipes - both the main recipe being loaded up at the URL,
-    and the sub-recipe being used by the templates.
-    
-    The allowed variables are as follows:
-        
-        {bag}
-        {tiddler}
-        
-    to use, add them into the URL path as follows:
+    Custom URLs can be extended by passing in custom variables. These can then be passed into custom
+    recipes and titles - both the main recipe being loaded up at the URL, and the sub-recipe being 
+    used by the templates. To use, add them into the URL path as follows:
     
         /url/path/{bag}/url/path/{tiddler}
         
-    then, add them into the recipe in the appropriate places. You will need to specify the recipe 
-    manually in the tiddler itself instead of just giving its name.
-    
-    (howto - get the url pattern from the tiddler, pass it through selector as the mapping to compare with the actual url.
-    if yes, then get the values and pass them into the recipes, all the way down (like turtles.))
+    then, add them into the recipe/title in the appropriate places.
 """
 
 from tiddlyweb.model.bag import Bag
@@ -131,8 +122,9 @@ def register_templates(config, store):
     config['tw_pages_serializers'] = {}
     for tiddler in tiddlers:
         extensionType = tiddler.type or 'text/html'
-        config['extension_types'][tiddler.title] = extensionType
-        config['serializers'][extensionType] = ['tw_pages','text/html; charset=UTF-8']
+        if tiddler.title != 'Default':
+            config['extension_types'][tiddler.title] = extensionType
+            config['serializers'][extensionType] = ['tw_pages','text/html; charset=UTF-8']
         try:
             page_title = tiddler.fields.pop('page_title')
         except KeyError:
@@ -169,10 +161,10 @@ def generate_serializer(environ, plugin_name, plugins, base_tiddlers):
         content = pass_through_external_serializer(environ, plugin_name, base_tiddlers)
     return content
 
-def generate_index(environ, content, title, scripts, styles):
+def generate_index(environ, content, title):
     server_prefix = get_server_prefix(environ)
-    template = template_env.get_template(environ['tiddlyweb.config']['tw_pages_default']['base_template'])
-    return template.render(content=content, title=title, prefix=server_prefix, scripts=scripts, styles=styles)
+    template = template_env.from_string(environ['tiddlyweb.config']['tw_pages_serializers']['Default']['template'])
+    return template.render(content=content, title=title, prefix=server_prefix)
 
 def get_template(environ, start_response):
     """
@@ -221,9 +213,7 @@ def get_template(environ, start_response):
         for key, value in RECIPE_EXTENSIONS.items():
             page_title = page_title.replace('{{ ' + key + ' }}', value)
             
-        scripts = environ['tiddlyweb.config']['tw_pages_default']['scripts']
-        styles = environ['tiddlyweb.config']['tw_pages_default']['styles']
-        content = generate_index(environ, content, page_title, scripts, styles)
+        content = generate_index(environ, content, page_title)
     else:
         content = pass_through_external_serializer(environ, plugin_name, tiddlers)
         
@@ -241,7 +231,7 @@ class Serialization(HTMLSerialization):
         bag = Bag('tmpBag',tmpbag=True)
         bag.add_tiddler(tiddler)
         try:
-            self.plugin_name = self.environ['tiddlyweb.config']['tw_pages_default']['single_tiddler']
+            self.plugin_name = self.environ['tiddlyweb.config']['tw_pages_serializers']['Default']['plugins']['single_tiddler']
         except IndexError:
             pass 
         self.page_title = tiddler.title
@@ -256,7 +246,7 @@ class Serialization(HTMLSerialization):
             try:
                 self.plugin_name
             except AttributeError:
-                self.plugin_name = self.environ['tiddlyweb.config']['tw_pages_default']['list_tiddlers']
+                self.plugin_name = self.environ['tiddlyweb.config']['tw_pages_serializers']['Default']['plugins']['list_tiddlers']
         try:
             self.plugins = self.environ['tiddlyweb.config']['tw_pages_serializers'][self.plugin_name]['plugins']
         except KeyError:
@@ -277,14 +267,10 @@ class Serialization(HTMLSerialization):
         if self.plugin_name in self.environ['tiddlyweb.config']['tw_pages_serializers']:
             content = generate_serializer(self.environ, self.plugin_name, self.plugins, base_tiddlers)
             self.page_title = self.environ['tiddlyweb.config']['tw_pages_serializers'][self.plugin_name]['title'] or self.plugin_name
-            logging.debug('poiuyt %s - %s' % (bag.name, RECIPE_EXTENSIONS))
-            logging.debug('self.page_title = %s' % self.page_title)
             for key, value in RECIPE_EXTENSIONS.items():
                 self.page_title = self.page_title.replace('{{ ' + key + ' }}', value)
                 
-            scripts = self.environ['tiddlyweb.config']['tw_pages_default']['scripts']
-            styles = self.environ['tiddlyweb.config']['tw_pages_default']['styles']
-            content = generate_index(self.environ, content, self.page_title, scripts, styles)
+            content = generate_index(self.environ, content, self.page_title)
         else:
             content = pass_through_external_serializer(self.environ, self.plugin_name, base_tiddlers)
         
@@ -321,11 +307,3 @@ def init(config_in):
     
     register_urls(config, store)
     register_templates(config, store)
-        
-       
-#    for extension in config['tw_pages_serializers']:
-#        extensionType = config['tw_pages_serializers'][extension]['type']
-#        config['extension_types'][extension] = extensionType
-#        config['serializers'][extensionType] = ['tw_pages','text/html; charset=UTF-8']
-
-
