@@ -204,8 +204,7 @@ class Serialization(HTMLSerialization):
     def return_jinja_template(self, template_name):
         """
         Returns the template as a string. used to pass into jinja
-        """
-        logging.debug('entering jinja template function. Template name is %s' % template_name) 
+        """ 
         try:
             return self.environ['tiddlyweb.config']['tw_pages_serializers'][template_name]['template']
         except KeyError:
@@ -270,7 +269,7 @@ class Serialization(HTMLSerialization):
         
         if self.plugin_name in self.environ['tiddlyweb.config']['tw_pages_serializers']:
             content = self.generate_html(self.plugin_name, self.plugins, base_tiddlers)
-            content = self.generate_index(content, self.page_title)
+            content = self.generate_index(content)
         else:
             content = self.pass_through_external_serializer(self.environ, self.plugin_name, base_tiddlers)
         
@@ -299,7 +298,7 @@ class Serialization(HTMLSerialization):
             content = self.pass_through_external_serializer(plugin_name, base_tiddlers)
         return content
     
-    def generate_index(self, content, title):
+    def generate_index(self, content):
         """
         wrap up the HTML in <html> and <body> tags as specifed by
         the Default template, set the page title and provide a
@@ -307,7 +306,7 @@ class Serialization(HTMLSerialization):
         """
         server_prefix = self.get_server_prefix()
         template = self.template_env.get_template('Default')
-        return template.render(content=content, title=title, prefix=server_prefix)
+        return template.render(content=content, title=self.page_title, prefix=server_prefix)
     
     def get_server_prefix(self):
         """
@@ -340,9 +339,12 @@ class Serialization(HTMLSerialization):
         returns the fully parsed page title, ready for output.
         """
         if title:
-            self.page_title = title
+            new_title = title
+        else:
+            new_title = self.page_title
         for key, value in RECIPE_EXTENSIONS.items():
             self.page_title = self.page_title.replace('{{ ' + key + ' }}', value)
+        return new_title
     
     def set_plugin_name(self, default_name):
         """
