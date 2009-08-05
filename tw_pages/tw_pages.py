@@ -342,8 +342,10 @@ class Serialization(HTMLSerialization):
             new_title = title
         else:
             new_title = self.page_title
+        logging.debug('page title is %s' % new_title)
+        logging.debug('recipe extensions are %s' % RECIPE_EXTENSIONS)
         for key, value in RECIPE_EXTENSIONS.items():
-            self.page_title = self.page_title.replace('{{ ' + key + ' }}', value)
+            new_title = new_title.replace('{{ ' + key + ' }}', value)
         return new_title
     
     def set_plugin_name(self, default_name):
