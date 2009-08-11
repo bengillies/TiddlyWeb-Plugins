@@ -1,0 +1,55 @@
+TiddlyWebPages
+
+This plugin is designed to allow easy development of websites using the jinja templating module. It provides 
+a means to create new templates and define new URLs for TiddlyWeb, directly from the clientside (with no need
+to create any .py files).
+
+Templates are stored, in the jinja format, as tiddlers. The structure allows you to define content separately,
+assign default templates to custom URLs and bags, and include templates (complete with their own separate 
+recipe) within other templates.
+
+The template tiddlers are designed in such a way as to facilitate sharing. That is, you should be able to take a 
+correctly designed template tiddler from someone else's TiddlyWeb install, and drop it into your own TiddlyWeb
+templates bag and start using it straight away, greatly simplifying the effort needed to create a new site.
+
+
+
+
+Config tiddler format:
+    
+    The config tiddler stores default templates to load up for each bag and a default wrapper to use.
+    It is optional, with details being set in the tiddler.text. It has the following format:
+    
+        bag: bag_name
+        list_tiddlers: template to use for lists of tiddlers
+        single_tiddler: template to use for a single tiddler
+        wrapper: wrapper to use (eg - the "Default" template is one of these)
+     
+Template tiddler format:
+
+    tiddler.title = extension_type
+    tiddler.type = content type
+    tiddler.fields = sub-templates to include in template. Formatted as follows:
+    
+                tiddler.fields['plugin_name'] = 'recipe to use on plugin'
+                where recipe is the name of the recipe
+
+    tiddler.text = the template itself. layed out using Jinja2 templating syntax. 
+    (nb - variables accessible within the template are: base (the base set of tiddlers); 
+     and extra (a dict containing named sub-templates specified))
+    
+    There is a special template called "Default", which acts as a wrapper, wrapping up other templates 
+    inside <html>/<body> tags, etc and providing a place to add scripts, stylesheets, rss feeds, and 
+    whatever else you want to add to each page. It has two additional fields within it - single_tiddler
+    and content_list: These let you specify which template to load up when you visit a single tiddler, 
+    or the tiddlers in a bag/recipe.
+        
+URL pattern matching:
+
+    Custom URLs can be extended by passing in custom variables. These can then be passed into custom
+    recipes and titles - both the main recipe being loaded up at the URL, and the sub-recipe being 
+    used by the templates. To use, add them into the URL path as follows:
+    
+        /url/path/{bag}/url/path/{tiddler}
+        
+    then, add them into the recipe/title in the appropriate places.
