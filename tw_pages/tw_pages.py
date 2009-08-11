@@ -442,7 +442,7 @@ def init(config_in):
     #provide a way to allow people to refresh their URLs
     config['selector'].add('/admin/urls/refresh', GET=refresh_urls)
     config['selector'].add('/admin/templates/refresh', GET=refresh_templates)
-    config['selector'].add('admin/twpages/refresh', GET=refresh_config)
+    config['selector'].add('/admin/twpages/refresh', GET=refresh_config)
                       
     #get the store
     store = Store(config['server_store'][0], {'tiddlyweb.config':config})
