@@ -26,9 +26,6 @@ BAG_OF_URLS = "urls"
 
 RECIPE_EXTENSIONS = {}
 
-
-
-
 def _extended_recipe_template(environ):
     """
     provide a means to specify custom {{ key }} values in recipes
@@ -183,9 +180,18 @@ def get_template(environ, start_response):
     base_recipe = environ['tiddlyweb.config']['tw_pages_urls'][url]['recipe']
     recipe = _get_recipe(environ, base_recipe)
     tiddlers = control.get_tiddlers_from_recipe(recipe)
+    
+    #filter the tiddlers
     if 'filter' in environ['tiddlyweb.config']['tw_pages_urls'][url]:
         filters = parse_for_filters(environ['tiddlyweb.config']['tw_pages_urls'][url]['filter'])[0]
+        #strip duplicate filters
+        filters = [f for f in filters if f.__name__ not in [e.__name__ for e in environ['tiddlyweb.filters']]]
+        if len(environ['tiddlyweb.filters']) > 0:
+            filters.extend(environ['tiddlyweb.filters'])
+        
         tiddlers = recursive_filter(filters, tiddlers)
+    tiddlers = [t for t in tiddlers]
+    
 
     serializer = Serialization(environ)
     
@@ -224,13 +230,23 @@ class Serialization(HTMLSerialization):
         self.page_title = ''
         self.plugin_name = ''
         self.template_env = Environment(loader=FunctionLoader(self.return_jinja_template))
-        def wikifier(mystr,bag):
-            tiddler = Tiddler("foo",bag)
+        def wikifier(mystr, path):
+            """
+            Render TiddlyWiki wikitext in the provided
+            string to HTML. This function taken and modified
+            from wikklytextrender.py
+            """
+            tiddler = Tiddler('tmp')
             tiddler.text = mystr
-            return render_wikitext(tiddler,environ)
-        def linkifier(str):
-            return "<a href='%s'>%s</a>"%(str,str)
+            tiddler.recipe = path
+            return render_wikitext(tiddler, self.environ)
         self.template_env.filters['wikified'] =wikifier
+        #put the query string into a dict (including filters so no tiddlyweb.query)
+        query_splitter = lambda x: [t.split('=',1) for t in re.split('[&;].', x)]
+        try:
+            self.query = dict(query_splitter(environ['QUERY_STRING']))
+        except ValueError:
+            self.query = {}
     
     def tiddler_as(self, tiddler):
         """
@@ -265,16 +281,19 @@ class Serialization(HTMLSerialization):
         base_tiddlers = bag.list_tiddlers()
         
         if type(base_tiddlers) != list:
-            base_tiddlers = [t for t in base_tiddlers]   
-        tiddler = base_tiddlers[0]
-        if tiddler.recipe:
-            RECIPE_EXTENSIONS['recipe'] = tiddler.recipe
-        if 'bag' not in RECIPE_EXTENSIONS and not bag.tmpbag:
-            RECIPE_EXTENSIONS['bag'] = bag.name 
-        elif 'bag' not in RECIPE_EXTENSIONS:
-            RECIPE_EXTENSIONS['bag'] = tiddler.bag
-        if 'tiddler' not in RECIPE_EXTENSIONS:
-            RECIPE_EXTENSIONS['tiddler'] = tiddler.title  
+            base_tiddlers = [t for t in base_tiddlers]
+        try:   
+            tiddler = base_tiddlers[0]
+            if tiddler.recipe:
+                RECIPE_EXTENSIONS['recipe'] = tiddler.recipe
+            if 'bag' not in RECIPE_EXTENSIONS and not bag.tmpbag:
+                RECIPE_EXTENSIONS['bag'] = bag.name 
+            elif 'bag' not in RECIPE_EXTENSIONS:
+                RECIPE_EXTENSIONS['bag'] = tiddler.bag
+            if 'tiddler' not in RECIPE_EXTENSIONS:
+                RECIPE_EXTENSIONS['tiddler'] = tiddler.title
+        except IndexError:
+            pass  
         
         self.plugin_name = self.set_plugin_name('list_tiddlers')
         
@@ -316,7 +335,7 @@ class Serialization(HTMLSerialization):
         server_prefix = self.get_server_prefix()
         try:
             template = self.template_env.get_template(plugin_name)
-            content = template.render(base=base_tiddlers, extra=plugin_html, prefix=server_prefix)
+            content = template.render(base=base_tiddlers, extra=plugin_html, prefix=server_prefix, query=self.query)
         except KeyError:
             content = self.pass_through_external_serializer(plugin_name, base_tiddlers)
         return content
@@ -386,6 +405,8 @@ class Serialization(HTMLSerialization):
         if not self.plugin_name:
             try:
                 name = self.environ['selector.matches'][0].rsplit('/',1)[1].rsplit('.',1)[1]
+                if name not in environ['tiddlyweb.config']['tw_pages_serializers']:
+                    raise IndexError
             except IndexError:
                 try:
                     name = self.environ['tiddlyweb.config']['tw_pages_config'][RECIPE_EXTENSIONS['bag']][default_name]
