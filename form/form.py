@@ -20,18 +20,33 @@ from tiddlyweb import control
 from tiddlyweb.web import util as web
 from tiddlyweb.model.policy import PermissionsError
 from cgi import FieldStorage
+import re
+import urllib
 
+def set_form(environ):
+    if environ['tiddlyweb.type'] == 'application/x-www-form-urlencoded':
+        return environ['tiddlyweb.query']
+    elif environ['tiddlyweb.type'] == 'multipart/form-data':
+        return FieldStorage(fp=environ['wsgi.input'], environ=environ)
+        
+    return None
+    
+def retrieve_item(obj, key): 
+    if type(obj) == FieldStorage:
+        return obj.getfirst(key)
+    else:
+        return obj[key][0]
 
 def post_tiddler_to_container(environ, start_response):
     """
     we have included the tiddler name in the form,
     so get that and carry on as normal
     """
-    form = FieldStorage(fp=environ['wsgi.input'], environ=environ)
+    form = set_form(environ)
     if 'file' in form:
-        tiddler_name = form['file'].filename
-    elif form.haskey('title'):
-        tiddler_name = form.getfirst('title')
+        tiddler_name = urllib.quote(form['file'].filename)
+    elif 'title' in form:
+        tiddler_name = urllib.quote(retrieve_item(form, 'title'))
     else:
         raise HTTP404('Unable to put tiddler, no title given')
     
@@ -81,10 +96,14 @@ def _post_tiddler(environ, start_response, tiddler, form=None):
             incoming_etag = environ.get('HTTP_IF_MATCH', None)
             if incoming_etag:
                 raise HTTP412('Tiddler does not exist, ETag disallowed.')
-        
+                
+        try:
+            redirect = environ['tiddlyweb.query'].pop('redirect')
+        except KeyError:
+            redirect = None
         if content_type == 'application/x-www-form-urlencoded' or content_type == 'multipart/form-data':
             if not form:
-                form = FieldStorage(fp=environ['wsgi.input'], environ=environ)
+                form = set_form(environ)
             serializer = Serializer('form', environ)
             serializer.object = tiddler
             serializer.from_string(form)
@@ -107,11 +126,16 @@ def _post_tiddler(environ, start_response, tiddler, form=None):
     except NoTiddlerError, exc:
         raise HTTP404('Unable to put tiddler, %s. %s' % (tiddler.title, exc))
         
-    #etag = ('Etag', _tiddler_etag(tiddler))
-    response = [('Location', web.tiddler_url(environ, tiddler))]
-    #if etag:
-    #    response.append(etag)
-    start_response("204 No Content", response)
+    etag = ('Etag', _tiddler_etag(tiddler))
+    if etag:
+        response = [etag]
+        
+    if redirect:
+        response.append(('Location', redirect[0]))
+        start_response('303 See Other', response)
+    else:
+        response.append(('Location', web.tiddler_url(environ, tiddler)))
+        start_response("204 No Content", response)
     
     return []
 
@@ -120,7 +144,7 @@ class Serialization(SerializationInterface):
         """
         turn a form input into a tiddler
         """
-        if 'file' in form and form['file'].file: 
+        if 'file' in form and getattr(form['file'], 'file', None): 
             my_file = form['file']
             if not my_file.file: raise TiddlerFormatError
             tiddler.type = my_file.type
@@ -129,83 +153,22 @@ class Serialization(SerializationInterface):
             keys = ['created', 'modified', 'modifier', 'text', 'type']
             for key in form:
                 if key in keys:
-                    setattr(tiddler, key, form.getfirst(key))
+                    setattr(tiddler, key, retrieve_item(form, key))
                 elif key == 'tags':
-                    tiddler.tags = self.create_tag_list(form.getfirst(key))
+                    tiddler.tags = self.create_tag_list(retrieve_item(form, key))
                 else:
-                    tiddler.fields[key] = form.getfirst(key)              
+                    tiddler.fields[key] = retrieve_item(form, key)              
         
         return tiddler
     
-    def create_tag_list(input_string):
-        var p = self.parse_params("list", null, false, true) 
-        var n = set([]);
-        for t in p:
-            if (p[t].value):
-                n.add(p[t].value)
-        
-        return list(n)
-        
-    def parse_params(defaultName, defaultValue, allowEval, noNames, cascadeDefaults):
-        def parseToken(match, p):
-            var n
-            if (match[p]): 
-                n = match[p]
-            elif (match[p + 1]):
-                n = match[p + 1]
-            elif (match[p + 2]):
-                n = match[p + 2]
-            elif (match[p + 3]):
-                try:
-                    n = match[p + 3]
-                    if (allowEval):
-                        n = window.eval(n)
-                except Exception:
-                    raise Exception("Unable to evaluate:{" + match[p + 3] + ": " + exceptionText(ex))
-         elif (match[p + 4]):
-             n = match[p + 4]
-         elif (match[p + 5]):
-             n = ""
-        return n
-        
-        var r = [{}]
-        var dblQuote = "(?:\"((?:(?:\\\\\")|[^\"])+)\")"
-        var sngQuote = "(?:'((?:(?:\\\\')|[^'])+)')"
-        var dblSquare = "(?:\\[\\[((?:\\s|\\S)*?)\\]\\])"
-        var dblBrace = "(?:\\{\\{((?:\\s|\\S)*?)\\}\\})"
-        var unQuoted = noNames ? "([^\"'\\s]\\S*)" : "([^\"':\\s][^\\s:]*)"
-        var emptyQuote = "((?:\"\")|(?:''))"
-        var skipSpace = "(?:\\s*)"
-        var token = "(?:" + dblQuote + "|" + sngQuote + "|" + dblSquare + "|" + dblBrace + "|" + unQuoted + "|" + emptyQuote + ")"
-        var re = noNames ? new RegExp(token, "mg") : new RegExp(skipSpace + token + skipSpace + "(?:(\\:)" + skipSpace + token + ")?", "mg")
-        var params = []
-        while True: 
-            var match = re.exec(this)
-            if (match): 
-                var n = parseToken(match, 1)
-                if (noNames): 
-                    r.push({name: "", value: n)
-                else: 
-                    var v = parseToken(match, 8)
-                    if (v == null && defaultName): 
-                        v = n
-                        n = defaultName
-                    elif (v == null && defaultValue): 
-                        v = defaultValue
-                    r.push({name: n, value: v)
-                    if (cascadeDefaults): 
-                        defaultName = n
-                        defaultValue = v
-            if not match:
-                break
-        for t in r: 
-            if (r[0][r[t].name]): 
-                r[0][r[t].name].push(r[t].value)
-            else: 
-                r[0][r[t].name] = [r[t].value]
-                
-        return r
-                                   
+    def create_tag_list(self, input_string):
+        regex = '\[\[([^\]\]]+)\]\]|(\S+)'
+        matches = re.findall(regex, input_string)
+        tags = set()
+        for bracketed, unbracketed in matches:
+            tag = bracketed or unbracketed
+            tags.add(tag)
+        return list(tags)
         
 
 def update_handler(selector, path, new_handler):
@@ -219,7 +182,6 @@ def update_handler(selector, path, new_handler):
         if regex.match(path) is not None:
             handler.update(new_handler)
             selector.mappings[index] = (regex, handler)
-            print 'matched %s' % path
 
 def init(config):
     """
@@ -230,13 +192,12 @@ def init(config):
     and Content-Type: multipart/form-data 
     """
     selector = config['selector']
-    print selector.mappings
-    print '\n\n\n\n\n\n'
+    
     update_handler(selector, '/recipes/foo/tiddlers', dict(POST=post_tiddler_to_container))
     update_handler(selector, '/recipes/foo/tiddlers/bar', dict(POST=post_tiddler))
     update_handler(selector, '/bags/foo/tiddlers', dict(POST=post_tiddler_to_container))
     update_handler(selector, '/bags/foo/tiddlers/bar', dict(POST=post_tiddler))
-    print selector.mappings
+    
     config['extension-types']['form'] = 'application/x-www-form-urlencoded'
     config['serializers']['application/x-www-form-urlencoded'] = ['form', 'application/x-www-form-urlencoded; charset=UTF-8']
     config['serializers']['multipart/form-data'] = ['form', 'multipart/form-data; charset=UTF-8']
