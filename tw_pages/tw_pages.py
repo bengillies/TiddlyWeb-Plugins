@@ -3,19 +3,19 @@ TiddlyWebPages
 
 by Ben Gillies
 """
-
+import pdb
 from tiddlyweb.model.bag import Bag
 from tiddlyweb.model.recipe import Recipe
 from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.store import Store, NoBagError
 
-from tiddlyweb.web.wsgi import HTMLPresenter
+from tiddlyweb.web.handler.recipe import get_tiddlers
 from tiddlyweb import control
 from tiddlyweb.filters import parse_for_filters, recursive_filter
 from tiddlyweb.serializations.html import Serialization as HTMLSerialization
 from tiddlyweb.serializer import Serializer
+from tiddlyweb.wikitext import render_wikitext
 from tiddlywebplugins import replace_handler
-from wikklytextrender import render as render_wikitext
 
 import logging
 from jinja2 import Environment, FunctionLoader, Template
@@ -103,10 +103,12 @@ def register_templates(config, store):
     #register them in config
     config['tw_pages_serializers'] = {}
     for tiddler in tiddlers:
-        extensionType = tiddler.type or 'text/html'
+        try:
+            extensionType = tiddler.fields.pop('mime_type')
+        except KeyError:
+            extensionType = 'application/twpages'
         if tiddler.title != 'Default':
             config['extension_types'][tiddler.title] = extensionType
-            config['serializers'][extensionType] = ['tw_pages','text/html; charset=UTF-8']
         try:
             page_title = tiddler.fields.pop('page_title')
         except KeyError:
@@ -118,6 +120,11 @@ def register_templates(config, store):
             'plugins': tiddler.fields,
             'template': tiddler.text
         }
+    
+    #finally, set the serializers
+    config['serializers']['application/twpages'] = ['tw_pages','text/html; charset=UTF-8']
+    config['serializers']['default'] = ['tw_pages','text/html; charset=UTF-8']
+    config['serializers']['text/html'] = ['tw_pages','text/html; charset=UTF-8']
 
 def register_config(config, store):
     """
@@ -137,7 +144,7 @@ def register_config(config, store):
         curr_bag = ''
         for line in lines:
             key, value = re.split(':[ ]*', line, 1)
-            if key == 'bag':
+            if key == 'container':
                 config['tw_pages_config'][value] = {}
                 curr_bag = value
             else:
@@ -147,21 +154,17 @@ def get_template(environ, start_response):
     """
     selector comes to this function when a custom url is found. 
     
-    Handle wsgiorg.routing_args and place in RECIPE_EXTENSIONS
-    for later use. Find out which URL brought us into this 
-    function using the parser in selector dn regex matching.
-    
-    Get the appropriate tiddlers out of the store and pass
-    them into the Serialization class for processing.
+    retrieve the recipe/serialization details and pass to 
+    tiddlyweb.web.handler.recipe.get_tiddlers
     """
-    #stage 1 = set url and extract variables
+    #set url and extract variables
     url = environ['selector.matches'][0]
     patterned = len(environ['wsgiorg.routing_args'][1]) > 0 #are there variables to extract?
     if patterned: 
         for element in environ['wsgiorg.routing_args'][1]:
             RECIPE_EXTENSIONS[element] = environ['wsgiorg.routing_args'][1][element]
 
-    #stage 2 = match the url with the appropriate entry in tw_pages_urls
+    #match the url with the appropriate entry in tw_pages_urls
     selector = environ['tiddlyweb.config']['selector']
     found = False
     for url_match in environ['tiddlyweb.config']['tw_pages_urls']:
@@ -172,41 +175,33 @@ def get_template(environ, start_response):
             url = url_match
             found = True
         if found:
-            environ['tiddlyweb.config']
             plugin_name = url_content['template']
             break
-    
-    #stage 3 = get the tiddlers and pass them into the serializer        
-    base_recipe = environ['tiddlyweb.config']['tw_pages_urls'][url]['recipe']
-    recipe = _get_recipe(environ, base_recipe)
-    tiddlers = control.get_tiddlers_from_recipe(recipe)
-    
-    #filter the tiddlers
+            
+    #get any custom set filters and combine with any filters passed in via the query string
     if 'filter' in environ['tiddlyweb.config']['tw_pages_urls'][url]:
         filters = parse_for_filters(environ['tiddlyweb.config']['tw_pages_urls'][url]['filter'])[0]
         #strip duplicate filters
-        filters = [f for f in filters if f.__name__ not in [e.__name__ for e in environ['tiddlyweb.filters']]]
+        filters = [custom_filter for custom_filter in filters if custom_filter.__name__ not in [environ_filter.__name__ for environ_filter in environ['tiddlyweb.filters']]]
         if len(environ['tiddlyweb.filters']) > 0:
             filters.extend(environ['tiddlyweb.filters'])
-        
-        tiddlers = recursive_filter(filters, tiddlers)
-    tiddlers = [t for t in tiddlers]
+            
+    #set up variables to pass into get_tiddlers
+    environ['tiddlyweb.extension'] = str(plugin_name)
+    environ['wsgiorg.routing_args'][1]['recipe_name'] = str(environ['tiddlyweb.config']['tw_pages_urls'][url]['recipe'])
+    environ['tiddlyweb.filters'] = filters
     
-
-    serializer = Serialization(environ)
+    #set tiddlyweb.type to make sure we call the correct serializer
+    try:
+        mime_type = environ['tiddlyweb.config']['extension_types'][plugin_name]
+    except KeyError:
+        mime_type = 'default'
+    environ['tiddlyweb.type'] = [mime_type]
     
-    if 'title' in environ['tiddlyweb.config']['tw_pages_urls'][url]:
-        page_title = environ['tiddlyweb.config']['tw_pages_urls'][url]['title']
-    serializer.page_title = page_title
-    serializer.plugin_name = plugin_name
+    #set the title
+    environ['tw_pages_title'] = environ['tiddlyweb.config']['tw_pages_urls'][url].get('title')
     
-    bag = Bag('tmpbag',tmpbag=True)
-    bag.add_tiddlers(tiddlers)
-    content = serializer.list_tiddlers(bag)
-    
-    #stage 4 = return the content
-    start_response('200 OK', [('Content-Type', 'text/html; charset=utf-8')])    
-    return content
+    return get_tiddlers(environ, start_response)
 
 
 class Serialization(HTMLSerialization):
@@ -227,7 +222,10 @@ class Serialization(HTMLSerialization):
 
     def __init__(self, environ):
         self.environ = environ
-        self.page_title = ''
+        try:
+            self.page_title = self.environ.pop('tw_pages_title')
+        except KeyError:
+            self.page_title = ''
         self.plugin_name = ''
         self.template_env = Environment(loader=FunctionLoader(self.return_jinja_template))
         def wikifier(mystr, path):
@@ -242,7 +240,7 @@ class Serialization(HTMLSerialization):
             return render_wikitext(tiddler, self.environ)
         self.template_env.filters['wikified'] =wikifier
         #put the query string into a dict (including filters so no tiddlyweb.query)
-        query_splitter = lambda x: [t.split('=',1) for t in re.split('[&;].', x)]
+        query_splitter = lambda x: [t.split('=',1) for t in re.split('[&;]?', x)]
         try:
             self.query = dict(query_splitter(environ['QUERY_STRING']))
         except ValueError:
@@ -307,7 +305,6 @@ class Serialization(HTMLSerialization):
             return content
         
         if not self.page_title:
-            #we have come straight into list_tiddlers, so still need to set RECIPE_EXTENSIONS. Do this using the first tiddler in the list
             self.page_title = self.set_page_title(self.environ['tiddlyweb.config']['tw_pages_serializers'][self.plugin_name]['title'] or self.plugin_name)
         else:
             self.page_title = self.set_page_title()
@@ -374,13 +371,17 @@ class Serialization(HTMLSerialization):
         so that it is rendered by the correct serializer and 
         returns the output.
         """
-        serializer = Serializer(name, self.environ)
+        serializer_module = self.environ['tiddlyweb.config']['serializers'].get(self.environ['tiddlyweb.config']['extension_types'].get(name))[0]
+        serializer = Serializer(serializer_module, self.environ)
+        
         if (type(tiddlers) != Tiddler):
             bag = Bag('tmpBag', tmpbag=True)
             bag.add_tiddlers(tiddlers)
+        try:
+            serializer.object = tiddlers
+            return serializer.to_string()
+        except AttributeError:
             return serializer.list_tiddlers(bag)
-        serializer.object = tiddlers
-        return serializer.to_string()
     
     def set_page_title(self, title=None):
         """
@@ -404,12 +405,12 @@ class Serialization(HTMLSerialization):
         """
         if not self.plugin_name:
             try:
-                name = self.environ['selector.matches'][0].rsplit('/',1)[1].rsplit('.',1)[1]
-                if name not in environ['tiddlyweb.config']['tw_pages_serializers']:
+                name = self.environ.get('tiddlyweb.extension') or self.environ['selector.matches'][0].rsplit('/',1)[1].rsplit('.',1)[1]
+                if name not in self.environ['tiddlyweb.config']['tw_pages_serializers']:
                     raise IndexError
             except IndexError:
                 try:
-                    name = self.environ['tiddlyweb.config']['tw_pages_config'][RECIPE_EXTENSIONS['bag']][default_name]
+                    name = self.environ['tiddlyweb.config']['tw_pages_config'][RECIPE_EXTENSIONS.get('bag') or RECIPE_EXTENSIONS.get('recipe')][default_name]
                 except KeyError:
                     name = self.environ['tiddlyweb.config']['tw_pages_serializers']['Default']['plugins'][default_name]
             return name
