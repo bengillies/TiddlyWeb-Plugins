@@ -100,6 +100,11 @@ def _post_tiddler(environ, start_response, tiddler, form=None):
                 
         try:
             redirect = environ['tiddlyweb.query'].pop('redirect')
+            if '?' in redirect[0] and not redirect[0].endswith('?'):
+                redirect[0] += '&'
+            else:
+                redirect[0] += '?'
+            redirect[0] += '.no-cache=%s' % uuid4()
         except KeyError:
             redirect = None
         if content_type == 'application/x-www-form-urlencoded' or content_type == 'multipart/form-data':
