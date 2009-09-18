@@ -22,6 +22,7 @@ from tiddlyweb.model.policy import PermissionsError
 from cgi import FieldStorage
 import re
 import urllib
+from uuid import uuid4
 
 def set_form(environ):
     if environ['tiddlyweb.type'] == 'application/x-www-form-urlencoded':
@@ -48,7 +49,7 @@ def post_tiddler_to_container(environ, start_response):
     elif 'title' in form:
         tiddler_name = urllib.quote(retrieve_item(form, 'title'))
     else:
-        raise HTTP404('Unable to put tiddler, no title given')
+        tiddler_name = str(uuid4())
     
     environ['wsgiorg.routing_args'][1]['tiddler_name'] = tiddler_name
     
