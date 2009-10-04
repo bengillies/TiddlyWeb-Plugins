@@ -137,7 +137,7 @@ def _post_tiddler(environ, start_response, tiddler, form=None):
         response = [etag]
         
     if redirect:
-        response.append(('Location', redirect[0]))
+        response.append(('Location', str(redirect[0])))
         start_response('303 See Other', response)
     else:
         response.append(('Location', web.tiddler_url(environ, tiddler)))
