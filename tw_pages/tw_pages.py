@@ -424,7 +424,7 @@ class Serialization(HTMLSerialization):
                     raise IndexError
             except IndexError:
                 try:
-                    name = self.environ['tiddlyweb.config']['tw_pages_config'][self.environ['recipe_extensions'].get('bag') or self.environ['recipe_extensions'].get('recipe')][default_name]
+                    name = self.environ['tiddlyweb.config']['tw_pages_config'][self.environ['recipe_extensions'].get('recipe') or self.environ['recipe_extensions'].get('bag')][default_name]
                 except KeyError:
                     name = self.environ['tiddlyweb.config']['tw_pages_serializers']['Default']['plugins'][default_name]
             return name
