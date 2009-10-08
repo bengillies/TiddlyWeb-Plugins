@@ -79,12 +79,14 @@ def register_urls(config, store):
         
         #register the url in config
         try:
-            filter_str = tiddler.fields['filter']
-        except KeyError:
+            recipe_str, filter_str = tiddler.fields['recipe_name'].split('?',1)
+        except ValueError:
             filter_str = ''
+            recipe_str = tiddler.fields['recipe_name']
+            
         config['tw_pages_urls'][tiddler.text] = {
             'title': tiddler.title,
-            'recipe': tiddler.fields['recipe_name'],
+            'recipe': recipe_str,
             'filter': filter_str,
             'template': tiddler.fields['template']
         }
@@ -223,9 +225,9 @@ class Serialization(HTMLSerialization):
 
     def __init__(self, environ):
         self.environ = environ
-        try:
+        if 'tw_pages_title' in self.environ:
             self.page_title = self.environ.pop('tw_pages_title')
-        except KeyError:
+        else:
             self.page_title = ''
         self.plugin_name = ''
         if not self.environ.get('recipe_extensions'):
@@ -251,7 +253,7 @@ class Serialization(HTMLSerialization):
         query_splitter = lambda x: [t.split('=',1) for t in re.split('[&;]?', x)]
         try:
             self.query = dict(query_splitter(environ['QUERY_STRING']))
-        except ValueError:
+        except ValueError, KeyError:
             self.query = {}
     
     def tiddler_as(self, tiddler):

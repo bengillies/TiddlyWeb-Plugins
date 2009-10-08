@@ -1,0 +1,18 @@
+modifier: bengillies.net
+created: 
+modified: 20090602092310
+type: None
+tags: 
+single_tiddler: 
+list_tiddlers: 
+
+<html>
+<head>
+	<title>{{title}}</title>
+</head>
+<body>
+	<div class="tw_page">
+		{{content}}
+	</div>
+</body>
+</html>

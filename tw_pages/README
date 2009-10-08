@@ -12,15 +12,36 @@ The template tiddlers are designed in such a way as to facilitate sharing. That 
 correctly designed template tiddler from someone else's TiddlyWeb install, and drop it into your own TiddlyWeb
 templates bag and start using it straight away, greatly simplifying the effort needed to create a new site.
 
+***INSTALL***
+
+To install this plugin, drop it into your instance directory and add it to system_plugins in the tiddlywebconfig.py
+file in the usual manner. 
+
+There are potentially 3 different sections within the store, the locations of which can all be configured. If you 
+want to do this you may also add another line to tiddlywebconfig.py of the following form:
+
+'tw_pages': {'templates': '<bag_name>', 'urls': '<bag_name>', 'config': ['<bag_name>', '<tiddler_name>']}
+
+'templates' defines the bag that templates are located in, while 'urls' defines the urls bag. Bag names default to 
+'templates' and 'urls' if this line is missed out.
+
+'config' defines a tiddler that is used to specify default templates to load with specific bags/recipes.
+
+After doing this, you will need to create the templates and urls bag defined in tiddlywebconfig.py.
+
+Finally, take the Default tiddler, and drop it into the templates bag. This will act as the wrapper that all other
+templates are passed through before sending the finished page to the browser.
+
 
 
 
 Config tiddler format:
     
     The config tiddler stores default templates to load up for each bag and a default wrapper to use.
-    It is optional, with details being set in the tiddler.text. It has the following format:
+    It is optional, with details being set in the tiddler.text. It has the following format (with each
+    container definition separated by a blank line):
     
-        bag: bag_name
+        container: bag_name/recipe_name
         list_tiddlers: template to use for lists of tiddlers
         single_tiddler: template to use for a single tiddler
         wrapper: wrapper to use (eg - the "Default" template is one of these)
@@ -28,15 +49,20 @@ Config tiddler format:
 Template tiddler format:
 
     tiddler.title = extension_type
-    tiddler.type = content type
-    tiddler.fields = sub-templates to include in template. Formatted as follows:
+    tiddler.fields['mime_type'] = content type
+    tiddler.fields['page_title'] = the default page title if no other title is specified
+    tiddler.fields (any other field) = sub-templates to include in template. Formatted as follows:
     
-                tiddler.fields['plugin_name'] = 'recipe to use on plugin'
-                where recipe is the name of the recipe
+                tiddler.fields['template_name'] = recipe?filters
+                where recipe is the name of the recipe that will be loaded into the plugin and filters is
+                the filters to apply on the recipe.
 
-    tiddler.text = the template itself. layed out using Jinja2 templating syntax. 
+    tiddler.text = the template itself. laid out using Jinja2 templating syntax. 
     (nb - variables accessible within the template are: base (the base set of tiddlers); 
-     and extra (a dict containing named sub-templates specified))
+     extra (a dict containing named sub-templates specified);
+     prefix (the server prefix defined in tiddlywebconfig.py);
+     query (a dict containing all query string parameters);
+     and root_vars (a dict containing all custom vairables (see below)))
     
     There is a special template called "Default", which acts as a wrapper, wrapping up other templates 
     inside <html>/<body> tags, etc and providing a place to add scripts, stylesheets, rss feeds, and 
@@ -44,12 +70,25 @@ Template tiddler format:
     and content_list: These let you specify which template to load up when you visit a single tiddler, 
     or the tiddlers in a bag/recipe.
         
-URL pattern matching:
+URL tiddler format:
+
+    tiddler.fields['recipe_name'] = recipe?filters
+    tiddler.fields['template'] = template_name
+    tiddler.text = custom url to match
 
     Custom URLs can be extended by passing in custom variables. These can then be passed into custom
     recipes and titles - both the main recipe being loaded up at the URL, and the sub-recipe being 
     used by the templates. To use, add them into the URL path as follows:
     
-        /url/path/{bag}/url/path/{tiddler}
+        /foo/{bag:segment}/bar/{tiddler:segment}
         
-    then, add them into the recipe/title in the appropriate places.
+    then, add them into the recipe/title in the appropriate places using the double brace syntax (ie - {{ bag }}).
+    
+
+***Finally***
+
+Perhaps the best way of learning how to create these and what syntax to use is to visit some that already exist and
+just have a look. Check out:
+
+http://bengillies.net/.a/bags/urls/tiddlers
+http://bengillies.net/.a/bags/templates/tiddlers
