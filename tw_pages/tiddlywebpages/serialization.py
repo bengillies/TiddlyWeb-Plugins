@@ -3,46 +3,20 @@ TiddlyWebPages
 
 by Ben Gillies
 """
-import pdb
+from tiddlywebpages.filters import JINJA_FILTERS
+
 from tiddlyweb.model.bag import Bag
 from tiddlyweb.model.recipe import Recipe
 from tiddlyweb.model.tiddler import Tiddler
-from tiddlyweb.store import Store, NoBagError
 
 from tiddlyweb.web.handler.recipe import get_tiddlers
 from tiddlyweb import control
 from tiddlyweb.filters import parse_for_filters, recursive_filter
 from tiddlyweb.serializations.html import Serialization as HTMLSerialization
 from tiddlyweb.serializer import Serializer
-from tiddlyweb.wikitext import render_wikitext
-from tiddlywebplugins import replace_handler
-from BeautifulSoup import BeautifulSoup
 
-import logging
 from jinja2 import Environment, FunctionLoader, Template
 import re
-
-BAG_OF_TEMPLATES = "templates"
-BAG_OF_URLS = "urls"
-
-def _extended_recipe_template(environ):
-    """
-    provide a means to specify custom {{ key }} values in recipes
-    which are then replaced with the value specified in environ['recipe_extensions']
-    """
-    template = {}
-    try:     
-        if environ:
-            template['user'] = environ['tiddlyweb.usersign']['name']
-    except KeyError:
-        pass
-    extensions = environ.get('recipe_extensions') or {}
-    for extension, value in extensions.iteritems():
-        template[extension] = value
-        
-    return template
-        
-control._recipe_template = _extended_recipe_template
 
 def _get_recipe(environ, recipe):
     """
@@ -53,159 +27,6 @@ def _get_recipe(environ, recipe):
     myRecipe = store.get(myRecipe)
     
     return myRecipe
-
-
-
-def register_urls(config, store):
-    """
-    get the custom urls specified out of the urls bag, register them
-    with selector, and put them into environ ready for use.
-    """
-    #get the urls out of the store
-    url_bag = Bag(BAG_OF_URLS)
-    url_bag = store.get(url_bag)
-    url_tiddlers = control.get_tiddlers_from_bag(url_bag)
-    config['tw_pages_urls'] = {}
-    for tiddler in url_tiddlers:
-        #register the url with selector
-        replacing = False
-        for index, (regex, handler) in enumerate(config['selector'].mappings):
-                if regex.match(tiddler.text) is not None:
-                    replacing = True
-                    config['selector'].mappings[index] = (regex, dict(GET=get_template))
-        if not replacing:
-            config['selector'].add(tiddler.text, GET=get_template)
-        replacing = False
-        
-        #register the url in config
-        try:
-            recipe_str, filter_str = tiddler.fields['recipe_name'].split('?',1)
-        except ValueError:
-            filter_str = ''
-            recipe_str = tiddler.fields['recipe_name']
-            
-        config['tw_pages_urls'][tiddler.text] = {
-            'title': tiddler.title,
-            'recipe': recipe_str,
-            'filter': filter_str,
-            'template': tiddler.fields['template']
-        }
-        
-def register_templates(config, store):
-    """
-    get the templates out of the store, register them as extensions-
-    types and serializers with TiddlyWeb, and put them into environ 
-    ready for use.
-    """
-    #get the templates out of the store
-    bag = Bag(BAG_OF_TEMPLATES)
-    bag = store.get(bag)
-    tiddlers = control.get_tiddlers_from_bag(bag)
-    
-    #register them in config
-    config['tw_pages_serializers'] = {}
-    for tiddler in tiddlers:
-        try:
-            extensionType = tiddler.fields.pop('mime_type')
-        except KeyError:
-            extensionType = 'application/twpages'
-        if tiddler.title != 'Default':
-            config['extension_types'][tiddler.title] = extensionType
-        try:
-            page_title = tiddler.fields.pop('page_title')
-        except KeyError:
-            page_title = None
-        
-        config['tw_pages_serializers'][tiddler.title] = {
-            'title': page_title,
-            'type': extensionType,
-            'plugins': tiddler.fields,
-            'template': tiddler.text
-        }
-    
-    #finally, set the serializers
-    config['serializers']['application/twpages'] = ['tw_pages','text/html; charset=UTF-8']
-    config['serializers']['default'] = ['tw_pages','text/html; charset=UTF-8']
-    config['serializers']['text/html'] = ['tw_pages','text/html; charset=UTF-8']
-
-def register_config(config, store):
-    """
-    get the config tiddler out of the store,
-    and put it in environ ready to use
-    """
-    #get the tiddler out of the store
-    tiddler = Tiddler(config['tw_pages']['config'][1])
-    tiddler.bag = config['tw_pages']['config'][0]
-    tiddler = store.get(tiddler)
-    
-    #register it in environ
-    config['tw_pages_config'] = {}
-    settings = re.split('[\n\r]{2}', tiddler.text)
-    for setting in settings:
-        lines = setting.splitlines()
-        curr_bag = ''
-        for line in lines:
-            key, value = re.split(':[ ]*', line, 1)
-            if key == 'container':
-                config['tw_pages_config'][value] = {}
-                curr_bag = value
-            else:
-                config['tw_pages_config'][curr_bag][key] = value
-
-def get_template(environ, start_response):
-    """
-    selector comes to this function when a custom url is found. 
-    
-    retrieve the recipe/serialization details and pass to 
-    tiddlyweb.web.handler.recipe.get_tiddlers
-    """
-    #set url and extract variables
-    url = environ['selector.matches'][0]
-    patterned = len(environ['wsgiorg.routing_args'][1]) > 0 #are there variables to extract?
-    if patterned:
-        environ['recipe_extensions'] = {} 
-        for element in environ['wsgiorg.routing_args'][1]:
-            environ['recipe_extensions'][element] = environ['wsgiorg.routing_args'][1][element]
-
-    #match the url with the appropriate entry in tw_pages_urls
-    selector = environ['tiddlyweb.config']['selector']
-    found = False
-    for url_match in environ['tiddlyweb.config']['tw_pages_urls']:
-        url_content = environ['tiddlyweb.config']['tw_pages_urls'][url_match]
-        #check tiddler.text with selector to find out if it matches the url
-        url_regex = selector.parser.__call__(url_match)
-        if re.search(url_regex, url):
-            url = url_match
-            found = True
-        if found:
-            plugin_name = url_content['template']
-            break
-            
-    #get any custom set filters and combine with any filters passed in via the query string
-    if 'filter' in environ['tiddlyweb.config']['tw_pages_urls'][url]:
-        filters = parse_for_filters(environ['tiddlyweb.config']['tw_pages_urls'][url]['filter'])[0]
-        #strip duplicate filters
-        filters = [custom_filter for custom_filter in filters if custom_filter.__name__ not in [environ_filter.__name__ for environ_filter in environ['tiddlyweb.filters']]]
-        if len(environ['tiddlyweb.filters']) > 0:
-            filters.extend(environ['tiddlyweb.filters'])
-            
-    #set up variables to pass into get_tiddlers
-    environ['tiddlyweb.extension'] = str(plugin_name)
-    environ['wsgiorg.routing_args'][1]['recipe_name'] = str(environ['tiddlyweb.config']['tw_pages_urls'][url]['recipe'])
-    environ['tiddlyweb.filters'] = filters
-    
-    #set tiddlyweb.type to make sure we call the correct serializer
-    try:
-        mime_type = environ['tiddlyweb.config']['extension_types'][plugin_name]
-    except KeyError:
-        mime_type = 'default'
-    environ['tiddlyweb.type'] = [mime_type]
-    
-    #set the title
-    environ['tw_pages_title'] = environ['tiddlyweb.config']['tw_pages_urls'][url].get('title')
-    
-    return get_tiddlers(environ, start_response)
-
 
 class Serialization(HTMLSerialization):
     """
@@ -233,22 +54,8 @@ class Serialization(HTMLSerialization):
         if not self.environ.get('recipe_extensions'):
             self.environ['recipe_extensions'] = {}
         self.template_env = Environment(loader=FunctionLoader(self.return_jinja_template))
-        def wikifier(mystr, path):
-            """
-            Render TiddlyWiki wikitext in the provided
-            string to HTML. This function taken and modified
-            from wikklytextrender.py
-            """
-            tiddler = Tiddler('tmp')
-            tiddler.text = mystr
-            tiddler.recipe = path
-            return render_wikitext(tiddler, self.environ)
-        def shorten(mystr, count):
-            shortened_str = mystr[0:count]
-            soup = BeautifulSoup(shortened_str)
-            return soup.prettify()
-        self.template_env.filters['wikified'] = wikifier
-        self.template_env.filters['shorten'] = shorten
+        for filter_name, filter_func in JINJA_FILTERS:
+            self.template_env.filters[filter_name] = filter_func
         #put the query string into a dict (including filters so no tiddlyweb.query)
         query_splitter = lambda x: [t.split('=',1) for t in re.split('[&;]?', x)]
         try:
@@ -431,71 +238,3 @@ class Serialization(HTMLSerialization):
                     name = self.environ['tiddlyweb.config']['tw_pages_serializers']['Default']['plugins'][default_name]
             return name
         return self.plugin_name
-
-def refresh_urls(environ, start_response):
-    """
-    Provide a mechanism for somebody to update the URL list
-    in selector without restarting apache. Entry point for
-    selector from the url /admin/urls/refresh
-    """
-    start_response('200 OK', [
-        ('Content-Type', 'text/html; charset=utf-8')
-        ])
-    register_urls(environ['tiddlyweb.config'], environ['tiddlyweb.store'])
-    return "Your urls have been successfully updated"
-    
-def refresh_templates(environ, start_response):
-    """
-    Provide a mechanism for somebody to update the serialization 
-    list in TiddlyWeb without restarting apache. Entry point for
-    selector from the url /admin/templates/refresh
-    """
-    start_response('200 OK', [
-        ('Content-Type', 'text/html; charset=utf-8')
-        ])
-    register_templates(environ['tiddlyweb.config'], environ['tiddlyweb.store'])
-    return "Your templates have been successfully updated"
-
-def refresh_config(environ, start_response):
-    """
-    Provide a mechanism for somebody to update the 
-    default tw_pages config information in TiddlyWeb 
-    without restarting apache. Entry point for
-    selector from the url /admin/twpages/refresh
-    """
-    start_response('200 OK', [
-        ('Content-Type', 'text/html; charset=utf-8')
-        ])
-    register_config(environ['tiddlyweb.config'], environ['tiddlyweb.store'])
-    return "Your config has been successfully updated"
-
-def init(config_in):
-    """
-    init function for tw_pages.
-    Set URLs
-    define serializers
-    """
-    config = config_in
-    
-    #provide a way to allow people to refresh their URLs
-    config['selector'].add('/admin/urls/refresh', GET=refresh_urls)
-    config['selector'].add('/admin/templates/refresh', GET=refresh_templates)
-    config['selector'].add('/admin/twpages/refresh', GET=refresh_config)
-                      
-    #get the store
-    store = Store(config['server_store'][0], {'tiddlyweb.config':config})
-
-    #set the default config info
-    if 'tw_pages' in config:
-        if 'templates' in config['tw_pages']:
-            BAG_OF_TEMPLATES = config['tw_pages']['templates']
-        if 'urls' in config['tw_pages']:
-            BAG_OF_URLS = config['tw_pages']['urls']
-        if 'config' in config['tw_pages']:
-            register_config(config, store)
-    
-    register_urls(config, store)
-    register_templates(config, store)         
-    
-    
-    
