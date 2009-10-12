@@ -20,12 +20,15 @@ file in the usual manner.
 There are potentially 3 different sections within the store, the locations of which can all be configured. If you 
 want to do this you may also add another line to tiddlywebconfig.py of the following form:
 
-'tw_pages': {'templates': '<bag_name>', 'urls': '<bag_name>', 'config': ['<bag_name>', '<tiddler_name>']}
+'tw_pages': {'templates': '<bag_name>', 'urls': '<bag_name>', 'config': ['<bag_name>', '<tiddler_name>'], filters: []}
 
 'templates' defines the bag that templates are located in, while 'urls' defines the urls bag. Bag names default to 
 'templates' and 'urls' if this line is missed out.
 
 'config' defines a tiddler that is used to specify default templates to load with specific bags/recipes.
+
+filters is a list of modules containing function to be used as Jinja filters. Filter function name must be the 
+same as the module name, ie - to add filter foo you would access foo(input_str) with foo.foo().
 
 After doing this, you will need to create the templates and urls bag defined in tiddlywebconfig.py.
 
