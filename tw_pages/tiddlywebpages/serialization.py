@@ -160,6 +160,17 @@ class Serialization(HTMLSerialization):
             content = self.pass_through_external_serializer(plugin_name, base_tiddlers)
         return content
     
+    def get_wrapper_name(self):
+        container = self.environ['recipe_extensions'].get('recipe', None) or self.environ['recipe_extensions'].get('bag')
+        try:
+            name = self.environ['tiddlyweb.config']['tw_pages_config'][container]['wrapper']
+        except KeyError:
+            name = self.environ['tiddlyweb.config']['tw_pages_serializers'][self.plugin_name]['wrapper']
+        if not name:
+            name = 'Default'
+            
+        return name
+    
     def generate_index(self, content):
         """
         wrap up the HTML in <html> and <body> tags as specifed by
@@ -167,10 +178,7 @@ class Serialization(HTMLSerialization):
         means to allow css and javascript files to be attached.
         """
         server_prefix = self.get_server_prefix()
-        try:
-            template = self.template_env.get_template(self.environ['tiddlyweb.config']['tw_pages_config'][self.environ['recipe_extensions']['bag']]['wrapper'])
-        except KeyError:
-            template = self.template_env.get_template('Default')
+        template = self.template_env.get_template(self.get_wrapper_name())
         return template.render(content=content, title=self.page_title, prefix=server_prefix)
     
     def get_server_prefix(self):

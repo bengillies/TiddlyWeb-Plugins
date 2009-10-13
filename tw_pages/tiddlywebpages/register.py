@@ -81,12 +81,17 @@ def register_templates(config, store):
             page_title = tiddler.fields.pop('page_title')
         except KeyError:
             page_title = None
+        try:
+            wrapper = tiddler.fields.pop('wrapper')
+        except KeyError:
+            wrapper = None    
         
         config['tw_pages_serializers'][tiddler.title] = {
             'title': page_title,
             'type': extensionType,
             'plugins': tiddler.fields,
-            'template': tiddler.text
+            'template': tiddler.text,
+            'wrapper': wrapper
         }
     
     #finally, set the serializers
