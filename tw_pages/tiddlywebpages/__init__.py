@@ -5,7 +5,7 @@ by Ben Gillies
 """
 from tiddlywebpages.register import refresh, register_config, \
     register_templates, register_urls, BAG_OF_URLS, BAG_OF_TEMPLATES
-from tiddlywebpages.filters import JINJA_FILTERS 
+from tiddlywebpages.filters import TW_PAGES_FILTERS 
 
 from tiddlyweb.store import Store
 from tiddlyweb import control
@@ -55,7 +55,7 @@ def init(config_in):
         if 'filters' in config['tw_pages']:
             for new_filter in config['tw_pages']['filters']:
                 _temp = __import__(new_filter, {}, {}, [new_filter])
-                JINJA_FILTERS.append((new_filter, getattr(_temp, new_filter)))
+                TW_PAGES_FILTERS.append((new_filter, getattr(_temp, new_filter)))
     
     register_urls(config, store)
     register_templates(config, store)
