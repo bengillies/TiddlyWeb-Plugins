@@ -3,7 +3,7 @@ TiddlyWebPages
 
 by Ben Gillies
 """
-from tiddlywebpages.filters import JINJA_FILTERS
+from tiddlywebpages.template import Template
 
 from tiddlyweb.model.bag import Bag
 from tiddlyweb.model.recipe import Recipe
@@ -15,7 +15,7 @@ from tiddlyweb.filters import parse_for_filters, recursive_filter
 from tiddlyweb.serializations.html import Serialization as HTMLSerialization
 from tiddlyweb.serializer import Serializer
 
-from jinja2 import Environment, FunctionLoader, Template
+
 import re
 
 def _get_recipe(environ, recipe):
@@ -35,15 +35,6 @@ class Serialization(HTMLSerialization):
     or tiddler_as. Can also pass tiddlers into other 
     serializations as and when required.
     """
-    def return_jinja_template(self, template_name):
-        """
-        Returns the template as a string. used to pass into jinja
-        """ 
-        try:
-            return self.environ['tiddlyweb.config']['tw_pages_serializers'][template_name]['template']
-        except KeyError:
-            return None
-
     def __init__(self, environ):
         self.environ = environ
         if 'tw_pages_title' in self.environ:
@@ -53,9 +44,7 @@ class Serialization(HTMLSerialization):
         self.plugin_name = ''
         if not self.environ.get('recipe_extensions'):
             self.environ['recipe_extensions'] = {}
-        self.template_env = Environment(loader=FunctionLoader(self.return_jinja_template))
-        for filter_name, filter_func in JINJA_FILTERS:
-            self.template_env.filters[filter_name] = filter_func
+        self.template = Template(self.environ)
         #put the query string into a dict (including filters so no tiddlyweb.query)
         query_splitter = lambda x: [t.split('=',1) for t in re.split('[&;]?', x)]
         try:
@@ -154,8 +143,8 @@ class Serialization(HTMLSerialization):
                     plugin_html[template] = self.pass_through_external_serializer(template, plugin_tiddlers)
         server_prefix = self.get_server_prefix()
         try:
-            template = self.template_env.get_template(plugin_name)
-            content = template.render(tiddlers=base_tiddlers, extra=plugin_html, prefix=server_prefix, query=self.query, root_vars=self.environ['recipe_extensions'])
+            self.template.set_template(plugin_name)
+            content = self.template.render(tiddlers=base_tiddlers, extra=plugin_html, prefix=server_prefix, query=self.query, root_vars=self.environ['recipe_extensions'])
         except KeyError:
             content = self.pass_through_external_serializer(plugin_name, base_tiddlers)
         return content
@@ -178,8 +167,8 @@ class Serialization(HTMLSerialization):
         means to allow css and javascript files to be attached.
         """
         server_prefix = self.get_server_prefix()
-        template = self.template_env.get_template(self.get_wrapper_name())
-        return template.render(content=content, title=self.page_title, prefix=server_prefix)
+        self.template.set_template(self.get_wrapper_name())
+        return self.template.render(content=content, title=self.page_title, prefix=server_prefix)
     
     def get_server_prefix(self):
         """
