@@ -44,7 +44,7 @@ class Serialization(HTMLSerialization):
         self.plugin_name = ''
         if not self.environ.get('recipe_extensions'):
             self.environ['recipe_extensions'] = {}
-        template_env = Template(self.environ)
+        self.template = Template(self.environ)
         #put the query string into a dict (including filters so no tiddlyweb.query)
         query_splitter = lambda x: [t.split('=',1) for t in re.split('[&;]?', x)]
         try:
@@ -143,8 +143,8 @@ class Serialization(HTMLSerialization):
                     plugin_html[template] = self.pass_through_external_serializer(template, plugin_tiddlers)
         server_prefix = self.get_server_prefix()
         try:
-            template = self.template_env.get_template(plugin_name)
-            content = template.render(base=base_tiddlers, extra=plugin_html, prefix=server_prefix, query=self.query, root_vars=self.environ['recipe_extensions'])
+            self.template.set_template(plugin_name)
+            content = self.template.render(base=base_tiddlers, extra=plugin_html, prefix=server_prefix, query=self.query, root_vars=self.environ['recipe_extensions'])
         except KeyError:
             content = self.pass_through_external_serializer(plugin_name, base_tiddlers)
         return content
@@ -167,8 +167,8 @@ class Serialization(HTMLSerialization):
         means to allow css and javascript files to be attached.
         """
         server_prefix = self.get_server_prefix()
-        template = self.template_env.get_template(self.get_wrapper_name())
-        return template.render(content=content, title=self.page_title, prefix=server_prefix)
+        self.template.set_template(self.get_wrapper_name())
+        return self.template.render(content=content, title=self.page_title, prefix=server_prefix)
     
     def get_server_prefix(self):
         """

@@ -10,12 +10,13 @@ from jinja2 import Environment, FunctionLoader, Template
 class Template():            
     def __init__(self, environ):
         self.environ = environ
+        self.template = None
         self.template_env = Environment(loader=FunctionLoader(self._get_template))
         for filter_name, filter_func in TW_PAGES_FILTERS:
             self.template_env.filters[filter_name] = filter_func
             
-    def get_template(self, template_name):
-        return self.template_env.get_template(template_name)
+    def set_template(self, template_name):
+        self.template = self.template_env.get_template(template_name)
         
     def render(self, **kwargs):
         return self.template.render(**kwargs)
