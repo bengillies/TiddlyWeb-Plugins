@@ -155,7 +155,7 @@ class Serialization(HTMLSerialization):
         server_prefix = self.get_server_prefix()
         try:
             template = self.template_env.get_template(plugin_name)
-            content = template.render(base=base_tiddlers, extra=plugin_html, prefix=server_prefix, query=self.query, root_vars=self.environ['recipe_extensions'])
+            content = template.render(tiddlers=base_tiddlers, extra=plugin_html, prefix=server_prefix, query=self.query, root_vars=self.environ['recipe_extensions'])
         except KeyError:
             content = self.pass_through_external_serializer(plugin_name, base_tiddlers)
         return content
