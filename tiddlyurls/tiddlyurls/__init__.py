@@ -16,6 +16,7 @@ voila!
 """
 from tiddlyurls.config import config as tiddlyurls_config
 from tiddlyurls.register import register_urls, refresh_urls
+from tiddlyurls.twanager import url
 
 from tiddlyweb.config import merge_config
 from tiddlyweb import control
