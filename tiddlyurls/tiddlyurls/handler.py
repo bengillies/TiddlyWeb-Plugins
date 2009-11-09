@@ -4,7 +4,8 @@ the main entry point for all urls
 from tiddlyweb.filters import parse_for_filters
 from tiddlyweb.control import get_tiddlers_from_bag
 from tiddlyweb.model.bag import Bag
-from tiddlyweb.web.handler.recipe import get_tiddlers
+from tiddlyweb.web.handler.recipe import get_tiddlers as recipe_tiddlers
+from tiddlyweb.web.handler.bag import get_tiddlers as bag_tiddlers
 
 import re
 
@@ -69,7 +70,6 @@ Please see <a href="%s">%s</a>
             environ['tiddlyweb.extension'] = str(value)
             mime_type = environ['tiddlyweb.config']['extension_types'].get(value, None)
         else:
-            print 'replacing %s with %s' % (part, value)
             environ['wsgiorg.routing_args'][1][part] = str(value)
     
     destination_parts.update(selector_variables)
@@ -83,7 +83,12 @@ Please see <a href="%s">%s</a>
         mime_type = 'default'
     environ['tiddlyweb.type'] = [mime_type]
     
-    return get_tiddlers(environ, start_response)
+    if 'recipe_name' in environ['wsgiorg.routing_args'][1]:
+        return recipe_tiddlers(environ, start_response)
+    elif 'bag_name' in environ['wsgiorg.routing_args'][1]:
+        return bag_tiddlers(environ, start_response)
+    
+    raise InvalidDestinationURL('URL \'%s\' is incorrectly formatted' % destination_url)
 
 def match_url(selector, url, potential_urls):
     """
@@ -133,7 +138,7 @@ def figure_filters(filters, custom_filters):
     if custom_filters:
         custom_filters = parse_for_filters(custom_filters)[0]
         #strip duplicate filters
-        result_filters = [custom_filter for custom_filter in custom_filters if custom_filter.__name__ not in [filter.__name__ for filter in filters]]
+        result_filters = [custom_filter for custom_filter in custom_filters if custom_filter[1][0] not in [user_filter[1][0] for user_filter in filters]]
         if len(filters) > 0:
             result_filters.extend(filters)
         return result_filters
