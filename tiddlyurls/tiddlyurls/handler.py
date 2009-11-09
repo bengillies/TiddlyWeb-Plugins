@@ -36,13 +36,15 @@ def get_handler(environ, start_response):
     selector_variables = extract_variables(environ['wsgiorg.routing_args'][1])
     
     potential_urls = get_urls(environ['tiddlyweb.config']['url_bag'], environ['tiddlyweb.store'])
-    selector_path, destination_url = match_url(environ['tiddlyweb.config']['selector'], environ['selector.matches'][0], potential_urls)
+    destination_url = match_url(environ['tiddlyweb.config']['selector'], environ['selector.matches'][0], potential_urls)[1]
     
     destination_url = replace_url_patterns(selector_variables, destination_url)
     
     if is_redirect(destination_url):
+        if destination_url.startswith('www.'):
+            destination_url = 'http://' + destination_url
         #redirect to the url and return
-        start_response('303 See Other', [
+        start_response('301 Moved Permanently', [
             ('Location', destination_url)
             ])
         return_link = '''<html>
@@ -56,7 +58,7 @@ Please see <a href="%s">%s</a>
         return return_link
     
     try:
-        url_part, custom_filters = destination_url.rsplit('?', 1)
+        url_part, custom_filters = destination_url.split('?', 1)
     except ValueError:
         url_part = destination_url
         custom_filters = None
@@ -89,8 +91,6 @@ def match_url(selector, url, potential_urls):
     
     return a tuple of (selector_path, destination_url)
     """
-    #match the url with the appropriate entry in 
-    found = False
     for selector_path, destination_url in potential_urls:
         #turn selector_path into the same regex that will appear in selector.matches
         url_regex = selector.parser.__call__(selector_path)
@@ -109,20 +109,16 @@ def get_urls(url_bag, store):
     tiddlers = get_tiddlers_from_bag(bag)
     return ((tiddler.title, tiddler.text) for tiddler in tiddlers)
 
-def is_redirect(destination_url, server_prefix=None):
+def is_redirect(destination_url):
     """
     determine whether the url is a redirect, or a mask
     for another tiddlyweb url
     
     return True/False
     """
-    regex = '^(?:\w+:\/\/\/*)|www.'
+    regex = '^(?:\w+:\/\/\/*)|www\.'
     if re.search(regex, destination_url):
         return True
-    else:
-        if not (destination_url.startswith('/recipes') or destination_url.startswith('/bags')):
-            if server_prefix and not destination_url.startswith('server_prefix'):
-                raise InvalidDestinationURL('URL \'%s\' is incorrectly formatted' % destination_url)
     return False
 
 def figure_filters(filters, custom_filters):
