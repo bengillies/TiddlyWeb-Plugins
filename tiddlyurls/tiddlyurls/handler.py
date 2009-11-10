@@ -6,6 +6,7 @@ from tiddlyweb.control import get_tiddlers_from_bag
 from tiddlyweb.model.bag import Bag
 from tiddlyweb.web.handler.recipe import get_tiddlers as recipe_tiddlers
 from tiddlyweb.web.handler.bag import get_tiddlers as bag_tiddlers
+from tiddlyweb.web.handler.tiddler import get as tiddler_get
 
 import re
 
@@ -64,6 +65,7 @@ Please see <a href="%s">%s</a>
         url_part = destination_url
         custom_filters = None
     
+    mime_type = 'default'
     destination_parts = figure_destination(url_part)
     for part, value in destination_parts.iteritems():
         if part == 'extension':
@@ -79,11 +81,11 @@ Please see <a href="%s">%s</a>
     environ['tiddlyweb.filters'] = filters
     
     #set tiddlyweb.type to make sure we call the correct serializer
-    if not mime_type:
-        mime_type = 'default'
     environ['tiddlyweb.type'] = [mime_type]
     
-    if 'recipe_name' in environ['wsgiorg.routing_args'][1]:
+    if 'tiddler_name' in environ['wsgiorg.routing_args'][1]:
+        return tiddler_get(environ, start_response)
+    elif 'recipe_name' in environ['wsgiorg.routing_args'][1]:
         return recipe_tiddlers(environ, start_response)
     elif 'bag_name' in environ['wsgiorg.routing_args'][1]:
         return bag_tiddlers(environ, start_response)
@@ -194,7 +196,8 @@ def replace_url_patterns(replace_variables, url):
     
     returns the new url
     """
-    for replace, value in replace_variables.iteritems():
-        url = url.replace('{{ %s }}' % replace, value)
+    for index, value in replace_variables.iteritems():
+        if value is not None:
+            url = url.replace('{{ %s }}' % index, value)
     
     return url
