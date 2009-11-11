@@ -198,12 +198,12 @@ def init(config):
     and Content-Type: multipart/form-data 
     """
     selector = config['selector']
-    
+
     update_handler(selector, '/recipes/foo/tiddlers', dict(POST=post_tiddler_to_container))
     update_handler(selector, '/recipes/foo/tiddlers/bar', dict(POST=post_tiddler))
     update_handler(selector, '/bags/foo/tiddlers', dict(POST=post_tiddler_to_container))
     update_handler(selector, '/bags/foo/tiddlers/bar', dict(POST=post_tiddler))
-    
-    config['extension-types']['form'] = 'application/x-www-form-urlencoded'
+
+    config['extension_types']['form'] = 'application/x-www-form-urlencoded'
     config['serializers']['application/x-www-form-urlencoded'] = ['form', 'application/x-www-form-urlencoded; charset=UTF-8']
     config['serializers']['multipart/form-data'] = ['form', 'multipart/form-data; charset=UTF-8']
