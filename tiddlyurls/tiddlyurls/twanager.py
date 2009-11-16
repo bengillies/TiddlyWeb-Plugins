@@ -9,9 +9,9 @@ from tiddlyurls.config import config as tiddlyurls_config
 
 from tiddlyweb.manage import _store, make_command
 from tiddlyweb.model.tiddler import Tiddler
-from tiddlyweb.model.bag import Bag
-from tiddlyweb.store import NoBagError
 from tiddlyweb.config import config
+
+import sys
 
 @make_command()
 def url(args):

@@ -8,6 +8,7 @@ from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.manage import _store, make_command
 
 import urllib
+import sys
 
 @make_command()
 def bimport(args):
