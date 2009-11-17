@@ -75,7 +75,7 @@ Please see <a href="%s">%s</a>
             environ['wsgiorg.routing_args'][1][part] = str(value)
     
     destination_parts.update(selector_variables)
-    environ['tiddlyweb.recipe_extensions'] = destination_parts
+    environ['tiddlyweb.recipe_template'] = destination_parts
             
     filters = figure_filters(environ['tiddlyweb.filters'], custom_filters)
     environ['tiddlyweb.filters'] = filters

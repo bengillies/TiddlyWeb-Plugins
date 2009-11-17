@@ -25,17 +25,15 @@ from tiddlyweb.store import Store
 def extended_recipe_template(environ):
     """
     provide a means to specify custom {{ key }} values in recipes
-    which are then replaced with the value specified in environ['tiddlyweb.recipe_extensions']
+    which are then replaced with the value specified in environ['tiddlyweb.recipe_template']
     """
-    template = {}
-    try:     
-        if environ:
+    template = {} 
+    if environ:
+        template = environ.get('tiddlyweb.recipe_template', {})
+        try:
             template['user'] = environ['tiddlyweb.usersign']['name']
-    except KeyError:
-        pass
-    extensions = environ.get('tiddlyweb.recipe_extensions') or {}
-    for extension, value in extensions.iteritems():
-        template[extension] = value
+        except KeyError:
+            pass
         
     return template
 
