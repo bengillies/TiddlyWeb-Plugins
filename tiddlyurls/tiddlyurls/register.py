@@ -7,6 +7,8 @@ from tiddlyweb.model.bag import Bag
 from tiddlyweb.store import NoBagError
 from tiddlyweb.control import get_tiddlers_from_bag
 
+from selector import SimpleParser
+import re
 import logging
 
 def register_urls(store, config):
@@ -27,7 +29,7 @@ def register_urls(store, config):
 def register_url(selector, tiddler):
     replaced = False
     for index, (regex, handler) in enumerate(selector.mappings):
-            if regex.match(tiddler.title) is not None:
+            if regex.match(tiddler.title) is not None or selector.parser(tiddler.title) == regex.pattern:
                 handler['GET'] = get_handler
                 selector.mappings[index] = (regex, handler)
                 replaced = True

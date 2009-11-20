@@ -185,9 +185,10 @@ def update_handler(selector, path, new_handler):
     Taken and modified from tiddlywebplugins 
     """
     for index, (regex, handler) in enumerate(selector.mappings):
-        if regex.match(path) is not None:
+        if regex.match(path) is not None or selector.parser(path) == regex.pattern:
             handler.update(new_handler)
             selector.mappings[index] = (regex, handler)
+            print 'updated %s' % path
 
 def init(config):
     """
@@ -199,10 +200,10 @@ def init(config):
     """
     selector = config['selector']
 
-    update_handler(selector, '/recipes/foo/tiddlers', dict(POST=post_tiddler_to_container))
-    update_handler(selector, '/recipes/foo/tiddlers/bar', dict(POST=post_tiddler))
-    update_handler(selector, '/bags/foo/tiddlers', dict(POST=post_tiddler_to_container))
-    update_handler(selector, '/bags/foo/tiddlers/bar', dict(POST=post_tiddler))
+    update_handler(selector, '/recipes/{recipe_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container))
+    update_handler(selector, '/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler))
+    update_handler(selector, '/bags/{bag_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container))
+    update_handler(selector, '/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler))
 
     config['extension_types']['form'] = 'application/x-www-form-urlencoded'
     config['serializers']['application/x-www-form-urlencoded'] = ['form', 'application/x-www-form-urlencoded; charset=UTF-8']

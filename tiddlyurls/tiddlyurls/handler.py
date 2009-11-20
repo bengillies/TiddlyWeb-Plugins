@@ -36,6 +36,8 @@ def get_handler(environ, start_response):
     tiddlyweb.web.handler.recipe.get_tiddlers
     """
     selector_variables = extract_variables(environ['wsgiorg.routing_args'][1])
+    #add the username to be more compliant with recipe variables
+    selector_variables['user'] = environ['tiddlyweb.usersign']['name']
     
     potential_urls = get_urls(environ['tiddlyweb.config']['url_bag'], environ['tiddlyweb.store'])
     destination_url = match_url(environ['tiddlyweb.config']['selector'], environ['selector.matches'][0], potential_urls)[1]
@@ -174,8 +176,6 @@ def figure_destination(url_part):
 def extract_variables(routing_args):
     """
     extract wsgiorg.routing_args and set as appropriate
-    figure out the standard tiddlyweb url that we are masking
-    and extract all the necessary variables
     
     returns a dict of all variables found
     """
