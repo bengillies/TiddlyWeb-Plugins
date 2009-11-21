@@ -41,14 +41,16 @@ def extended_recipe_template(environ):
 control._recipe_template = extended_recipe_template
 
 def init(config):
-    #provide a way to allow people to refresh their URLs
-    config['selector'].add('/tiddlyurls/refresh', GET=refresh_urls)
-                      
-    #get the store
-    store = Store(config['server_store'][0], {'tiddlyweb.config':config})
-    
     #merge the custom config information
     merge_config(config, tiddlyurls_config)
+
+    #provide a way to allow people to refresh their URLs
+    if 'selector' in config:
+        config['selector'].add('/tiddlyurls/refresh', GET=refresh_urls)
     
-    #register the urls with selector
-    register_urls(store, config)
+        #get the store
+        store = Store(config['server_store'][0], {'tiddlyweb.config':config})
+
+        #register the urls with selector
+        register_urls(store, config)
+
