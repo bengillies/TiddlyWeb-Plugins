@@ -22,24 +22,6 @@ from tiddlyweb.config import merge_config
 from tiddlyweb import control
 from tiddlyweb.store import Store
 
-def extended_recipe_template(environ):
-    """
-    provide a means to specify custom {{ key }} values in recipes
-    which are then replaced with the value specified in environ['tiddlyweb.recipe_template']
-    """
-    template = {} 
-    if environ:
-        template = environ.get('tiddlyweb.recipe_template', {})
-        try:
-            template['user'] = environ['tiddlyweb.usersign']['name']
-        except KeyError:
-            pass
-        
-    return template
-
-#override the recipe template behaviour to allow more dynamic recipes
-control._recipe_template = extended_recipe_template
-
 def init(config):
     #merge the custom config information
     merge_config(config, tiddlyurls_config)
