@@ -13,47 +13,11 @@ from tiddlyweb import control
 import re
 
 BAG_OF_TEMPLATES = "templates"
-BAG_OF_URLS = "urls"
 DEFAULT_TEMPLATES = [
     'default',
     'application/twpages',
     'text/html'
     ]
-
-def register_urls(config, store):
-    """
-    get the custom urls specified out of the urls bag, register them
-    with selector, and put them into environ ready for use.
-    """
-    #get the urls out of the store
-    url_bag = Bag(BAG_OF_URLS)
-    url_bag = store.get(url_bag)
-    url_tiddlers = control.get_tiddlers_from_bag(url_bag)
-    config['tw_pages_urls'] = {}
-    for tiddler in url_tiddlers:
-        #register the url with selector
-        replacing = False
-        for index, (regex, handler) in enumerate(config['selector'].mappings):
-                if regex.match(tiddler.text) is not None:
-                    replacing = True
-                    config['selector'].mappings[index] = (regex, dict(GET=get_template))
-        if not replacing:
-            config['selector'].add(tiddler.text, GET=get_template)
-        replacing = False
-        
-        #register the url in config
-        try:
-            recipe_str, filter_str = tiddler.fields['recipe_name'].split('?',1)
-        except ValueError:
-            filter_str = ''
-            recipe_str = tiddler.fields['recipe_name']
-            
-        config['tw_pages_urls'][tiddler.text] = {
-            'title': tiddler.title,
-            'recipe': recipe_str,
-            'filter': filter_str,
-            'template': tiddler.fields['template']
-        }
         
 def register_templates(config, store):
     """
@@ -132,6 +96,6 @@ def refresh(environ, start_response):
         ('Content-Type', 'text/html; charset=utf-8')
         ])
     register_templates(environ['tiddlyweb.config'], environ['tiddlyweb.store'])
-    register_urls(environ['tiddlyweb.config'], environ['tiddlyweb.store'])
-    register_config(environ['tiddlyweb.config'], environ['tiddlyweb.store'])
+    if 'config' in environ['tiddlyweb.config']['tw_pages']:
+        register_config(environ['tiddlyweb.config'], environ['tiddlyweb.store'])
     return "TiddlyWebPages has been successfully updated"

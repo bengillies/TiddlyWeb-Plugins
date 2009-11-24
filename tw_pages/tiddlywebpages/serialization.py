@@ -42,8 +42,8 @@ class Serialization(HTMLSerialization):
         else:
             self.page_title = ''
         self.plugin_name = ''
-        if not self.environ.get('recipe_extensions'):
-            self.environ['recipe_extensions'] = {}
+        if not self.environ.get('tiddlyweb.recipe_template'):
+            self.environ['tiddlyweb.recipe_template'] = {}
         self.template = Template(self.environ)
         #put the query string into a dict (including filters so no tiddlyweb.query)
         query_splitter = lambda x: [t.split('=',1) for t in re.split('[&;]?', x)]
@@ -58,12 +58,12 @@ class Serialization(HTMLSerialization):
         and passes the tiddler into list_tiddlers for turning
         into HTML
         """
-        if 'tiddler' not in self.environ['recipe_extensions']:
-            self.environ['recipe_extensions']['tiddler'] = tiddler.title
-        if 'bag' not in self.environ['recipe_extensions']:
-            self.environ['recipe_extensions']['bag'] = tiddler.bag
-        if tiddler.recipe and 'recipe' not in self.environ['recipe_extensions']:
-            self.environ['recipe_extensions']['recipe'] = tiddler.recipe
+        if 'tiddler' not in self.environ['tiddlyweb.recipe_template']:
+            self.environ['tiddlyweb.recipe_template']['tiddler'] = tiddler.title
+        if 'bag' not in self.environ['tiddlyweb.recipe_template']:
+            self.environ['tiddlyweb.recipe_template']['bag'] = tiddler.bag
+        if tiddler.recipe and 'recipe' not in self.environ['tiddlyweb.recipe_template']:
+            self.environ['tiddlyweb.recipe_template']['recipe'] = tiddler.recipe
             
         bag = Bag('tmpbag',tmpbag=True)
         bag.add_tiddler(tiddler)
@@ -90,14 +90,14 @@ class Serialization(HTMLSerialization):
             base_tiddlers = [t for t in base_tiddlers]
         try:   
             tiddler = base_tiddlers[0]
-            if tiddler.recipe and 'recipe' not in self.environ['recipe_extensions']:
-                self.environ['recipe_extensions']['recipe'] = tiddler.recipe
-            if 'bag' not in self.environ['recipe_extensions'] and not bag.tmpbag:
-                self.environ['recipe_extensions']['bag'] = bag.name 
-            elif 'bag' not in self.environ['recipe_extensions']:
-                self.environ['recipe_extensions']['bag'] = tiddler.bag
-            if 'tiddler' not in self.environ['recipe_extensions']:
-                self.environ['recipe_extensions']['tiddler'] = tiddler.title
+            if tiddler.recipe and 'recipe' not in self.environ['tiddlyweb.recipe_template']:
+                self.environ['tiddlyweb.recipe_template']['recipe'] = tiddler.recipe
+            if 'bag' not in self.environ['tiddlyweb.recipe_template'] and not bag.tmpbag:
+                self.environ['tiddlyweb.recipe_template']['bag'] = bag.name 
+            elif 'bag' not in self.environ['tiddlyweb.recipe_template']:
+                self.environ['tiddlyweb.recipe_template']['bag'] = tiddler.bag
+            if 'tiddler' not in self.environ['tiddlyweb.recipe_template']:
+                self.environ['tiddlyweb.recipe_template']['tiddler'] = tiddler.title
         except IndexError:
             pass  
         
@@ -144,13 +144,13 @@ class Serialization(HTMLSerialization):
         server_prefix = self.get_server_prefix()
         try:
             self.template.set_template(plugin_name)
-            content = self.template.render(tiddlers=base_tiddlers, extra=plugin_html, prefix=server_prefix, query=self.query, root_vars=self.environ['recipe_extensions'])
+            content = self.template.render(tiddlers=base_tiddlers, extra=plugin_html, prefix=server_prefix, query=self.query, root_vars=self.environ['tiddlyweb.recipe_template'])
         except KeyError:
             content = self.pass_through_external_serializer(plugin_name, base_tiddlers)
         return content
     
     def get_wrapper_name(self):
-        container = self.environ['recipe_extensions'].get('recipe', None) or self.environ['recipe_extensions'].get('bag')
+        container = self.environ['tiddlyweb.recipe_template'].get('recipe', None) or self.environ['tiddlyweb.recipe_template'].get('bag')
         try:
             name = self.environ['tiddlyweb.config']['tw_pages_config'][container]['wrapper']
         except KeyError:
@@ -211,7 +211,7 @@ class Serialization(HTMLSerialization):
             new_title = title
         else:
             new_title = self.page_title
-        for key, value in self.environ['recipe_extensions'].items():
+        for key, value in self.environ['tiddlyweb.recipe_template'].items():
             if key and value:
                 new_title = new_title.replace('{{ ' + key + ' }}', value)
         return new_title
@@ -230,7 +230,7 @@ class Serialization(HTMLSerialization):
                     raise IndexError
             except IndexError:
                 try:
-                    name = self.environ['tiddlyweb.config']['tw_pages_config'][self.environ['recipe_extensions'].get('recipe') or self.environ['recipe_extensions'].get('bag')][default_name]
+                    name = self.environ['tiddlyweb.config']['tw_pages_config'][self.environ['tiddlyweb.recipe_template'].get('recipe') or self.environ['tiddlyweb.recipe_template'].get('bag')][default_name]
                 except KeyError:
                     name = self.environ['tiddlyweb.config']['tw_pages_serializers']['Default']['plugins'][default_name]
             return name

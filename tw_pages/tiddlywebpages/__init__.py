@@ -4,58 +4,40 @@ TiddlyWebPages
 by Ben Gillies
 """
 from tiddlywebpages.register import refresh, register_config, \
-    register_templates, register_urls, BAG_OF_URLS, BAG_OF_TEMPLATES
-from tiddlywebpages.filters import TW_PAGES_FILTERS 
+    register_templates,  BAG_OF_TEMPLATES
+from tiddlywebpages.filters import TW_PAGES_FILTERS
+from tiddlywebpages.config import config as twp_config
 
 from tiddlyweb.store import Store
 from tiddlyweb import control
+from tiddlyweb.config import merge_config
 
-def extended_recipe_template(environ):
-    """
-    provide a means to specify custom {{ key }} values in recipes
-    which are then replaced with the value specified in environ['recipe_extensions']
-    """
-    template = {}
-    try:     
-        if environ:
-            template['user'] = environ['tiddlyweb.usersign']['name']
-    except KeyError:
-        pass
-    extensions = environ.get('recipe_extensions') or {}
-    for extension, value in extensions.iteritems():
-        template[extension] = value
-        
-    return template
 
-#override the recipe template behaviour to allow more dynamic recipes
-control._recipe_template = extended_recipe_template
-
-def init(config_in):
+def init(config):
     """
     init function for tiddlywebpages.
     Set URLs
     define serializers
     """
-    config = config_in
+    merge_config(config, twp_config)
     
     #provide a way to allow people to refresh their URLs
-    config['selector'].add('/admin/tiddlywebpages/refresh', GET=refresh)
+    config['selector'].add('/tiddlywebpages/refresh', GET=refresh)
                       
     #get the store
     store = Store(config['server_store'][0], {'tiddlyweb.config':config})
-
-    #set the default config info
-    if 'tw_pages' in config:
-        if 'templates' in config['tw_pages']:
-            BAG_OF_TEMPLATES = config['tw_pages']['templates']
-        if 'urls' in config['tw_pages']:
-            BAG_OF_URLS = config['tw_pages']['urls']
-        if 'config' in config['tw_pages']:
-            register_config(config, store)
-        if 'filters' in config['tw_pages']:
-            for new_filter in config['tw_pages']['filters']:
-                _temp = __import__(new_filter, {}, {}, [new_filter])
-                TW_PAGES_FILTERS.append((new_filter, getattr(_temp, new_filter)))
     
-    register_urls(config, store)
+    #set the default config info
+    BAG_OF_TEMPLATES = config['tw_pages']['template_bag']
+    
+    if 'config' in config['tw_pages']:
+        register_config(config, store)
+        
+    for new_filter in config['tw_pages']['filters']:
+        _temp = __import__(new_filter, {}, {}, [new_filter])
+        TW_PAGES_FILTERS.append((new_filter, getattr(_temp, new_filter)))
+        
+    if 'config' in config['tw_pages']:
+        register_config(config, store)
     register_templates(config, store)
+    
