@@ -49,7 +49,7 @@ def get_handler(environ, start_response):
             destination_url = 'http://' + destination_url
         #redirect to the url and return
         start_response('301 Moved Permanently', [
-            ('Location', destination_url)
+            ('Location', str(destination_url))
             ])
         return_link = '''<html>
 <head>
