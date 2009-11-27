@@ -15,11 +15,16 @@ import sys
 
 @make_command()
 def url(args):
-    """Add a URL via TiddlyURLs. <selector_path> <destination_url>"""
-    if len(args) != 2:
+    """Add a URL via TiddlyURLs. Redirect is optional. [--redirect] <selector_path> <destination_url>"""
+    if 2 != len(args) != 3:
         print >> sys.stderr, ('you must include both the path you want to use (selector path) and the destination url')
         
     store = _store()
+    
+    if args[0] == '--redirect':
+        redirect = args.pop(0).lstrip('-')
+    else:
+        redirect = None
     
     selector_path = args[0]
     destination_url = args[1]
@@ -30,6 +35,8 @@ def url(args):
     except KeyError:
         tiddler.bag = tiddlyurls_config['url_bag']
     tiddler.text = destination_url
+    if redirect:
+        tiddler.tags = [redirect]
     
     store.put(tiddler)
     

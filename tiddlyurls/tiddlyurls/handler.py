@@ -39,12 +39,12 @@ def get_handler(environ, start_response):
     #add the username to be more compliant with recipe variables
     selector_variables['user'] = environ['tiddlyweb.usersign']['name']
     
-    potential_urls = get_urls(environ['tiddlyweb.config']['url_bag'], environ['tiddlyweb.store'])
-    destination_url = match_url(environ['tiddlyweb.config']['selector'], environ['selector.matches'][0], potential_urls)[1]
+    potential_matches = get_urls(environ['tiddlyweb.config']['url_bag'], environ['tiddlyweb.store'])
+    match = match_url(environ['tiddlyweb.config']['selector'], environ['selector.matches'][0], potential_matches)
     
-    destination_url = replace_url_patterns(selector_variables, destination_url)
+    destination_url = replace_url_patterns(selector_variables, match.text)
     
-    if is_redirect(destination_url):
+    if is_redirect(match):
         if destination_url.startswith('www.'):
             destination_url = 'http://' + destination_url
         #redirect to the url and return
@@ -94,18 +94,18 @@ Please see <a href="%s">%s</a>
     
     raise InvalidDestinationURL('URL \'%s\' is incorrectly formatted' % destination_url)
 
-def match_url(selector, url, potential_urls):
+def match_url(selector, url, potential_matches):
     """
     match the current url with the correct url in the url_bag
     
     return a tuple of (selector_path, destination_url)
     """
-    for selector_path, destination_url in potential_urls:
-        #turn selector_path into the same regex that will appear in selector.matches
-        url_regex = selector.parser.__call__(selector_path)
+    for tiddler in potential_matches:
+        #turn the selector path into the same regex that will appear in selector.matches
+        url_regex = selector.parser.__call__(tiddler.title)
         if re.search(url_regex, url):
             #we have found our url
-            return (selector_path, destination_url)
+            return tiddler
     raise NoTiddlyURL('URL not found in selector')
 
 def get_urls(url_bag, store):
@@ -116,18 +116,22 @@ def get_urls(url_bag, store):
     bag = Bag(url_bag)
     bag = store.get(bag)
     tiddlers = get_tiddlers_from_bag(bag)
-    return ((tiddler.title, tiddler.text) for tiddler in tiddlers)
+    return (tiddler for tiddler in tiddlers)
 
-def is_redirect(destination_url):
+def is_redirect(tiddler):
     """
     determine whether the url is a redirect, or a mask
     for another tiddlyweb url
     
     return True/False
     """
-    regex = '^(?:\w+:\/\/\/*)|www\.'
-    if re.search(regex, destination_url):
+    if 'redirect' in tiddler.tags:
         return True
+    
+    regex = '^(?:\w+:\/\/\/*)|www\.'
+    if re.search(regex, tiddler.text):
+        return True
+    
     return False
 
 def figure_filters(filters, custom_filters):
