@@ -44,7 +44,7 @@ def post_tiddler_to_container(environ, start_response):
     so get that and carry on as normal
     """
     form = set_form(environ)
-    if 'file' in form:
+    if 'file' in form and getattr(form['file'], 'file', None):
         tiddler_name = urllib.quote(form['file'].filename)
     elif 'title' in form:
         tiddler_name = urllib.quote(retrieve_item(form, 'title'))
@@ -53,7 +53,7 @@ def post_tiddler_to_container(environ, start_response):
     
     environ['wsgiorg.routing_args'][1]['tiddler_name'] = tiddler_name
     
-    tiddler = _determine_tiddler(environ, control.determine_tiddler_bag_from_recipe)
+    tiddler = _determine_tiddler(environ, control.determine_bag_for_tiddler)
     
     return _post_tiddler(environ, start_response, tiddler, form)
 
@@ -132,7 +132,7 @@ def _post_tiddler(environ, start_response, tiddler, form=None):
     except NoTiddlerError, exc:
         raise HTTP404('Unable to put tiddler, %s. %s' % (tiddler.title, exc))
         
-    etag = ('Etag', _tiddler_etag(tiddler))
+    etag = ('Etag', _tiddler_etag(environ, tiddler))
     if etag:
         response = [etag]
         
@@ -175,7 +175,6 @@ class Serialization(SerializationInterface):
             tag = bracketed or unbracketed
             tags.add(tag)
         return list(tags)
-        
 
 def update_handler(selector, path, new_handler):
     """
@@ -188,7 +187,6 @@ def update_handler(selector, path, new_handler):
         if regex.match(path) is not None or selector.parser(path) == regex.pattern:
             handler.update(new_handler)
             selector.mappings[index] = (regex, handler)
-            print 'updated %s' % path
 
 def init(config):
     """
