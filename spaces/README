@@ -1,0 +1,24 @@
+Space
+
+Space is a class that can be used to create a space
+
+A space is defined as a common set of bags and recipes
+that are all related in some way.
+
+For example, a user space might have a private bag,
+a public bag, and a recipe containing both of their
+bags, and the system bag.
+
+Or a project space might contain a project bag, a
+bag containing some project specific config, a project
+report bag, and two recipes.
+
+This class is intended to provide an easy entry point
+to accomplish this.
+
+Note that it does not provide a user interface for creating
+a space itself. That is left up to you.
+
+Note also, that bags will not be replaced if they already exist.
+
+See the examples folder for a couple of usage examples.
