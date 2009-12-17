@@ -11,7 +11,7 @@ from tiddlyweb.web.handler.tiddler import get as tiddler_get
 import re
 
 
-class NoTiddlyURLFoundError(IOError):
+class NoURLFoundError(IOError):
     """
     This shouldn't ever be raised in practise, as if we get 
     into this module, the url has already matched so should 
@@ -30,7 +30,7 @@ class InvalidDestinationURL(IOError):
 
 def get_handler(environ, start_response):
     """
-    selector comes to this function when a tiddlyUrl is found. 
+    selector comes to this function when a url is found. 
     
     retrieve the recipe/serialization details and pass to 
     tiddlyweb.web.handler.recipe.get_tiddlers
@@ -53,7 +53,7 @@ def get_handler(environ, start_response):
             ])
         return_link = '''<html>
 <head>
-<title>TiddlyURL Redirect</title>
+<title>URL Redirect</title>
 </head>
 <body>
 Please see <a href="%s">%s</a>
@@ -106,7 +106,7 @@ def match_url(selector, url, potential_matches):
         if re.search(url_regex, url):
             #we have found our url
             return tiddler
-    raise NoTiddlyURL('URL not found in selector')
+    raise NoURLFoundError('URL not found in selector')
 
 def get_urls(url_bag, store):
     """

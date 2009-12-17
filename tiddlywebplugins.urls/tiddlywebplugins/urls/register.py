@@ -1,7 +1,7 @@
 """
 register the urls in the named bag with selector
 """
-from tiddlyurls.handler import get_handler
+from tiddlywebplugins.urls.handler import get_handler
 
 from tiddlyweb.model.bag import Bag
 from tiddlyweb.store import NoBagError
@@ -19,7 +19,7 @@ def register_urls(store, config):
     try:
         bag = store.get(bag)
     except NoBagError:
-        logging.debug('TiddlyUrls Error: No bag found for urls. Please create bag \"%s\".' % url_bag)
+        logging.debug('tiddlywebplugins.urls Error: No bag found for urls. Please create bag \"%s\".' % url_bag)
         raise NoBagError
     
     tiddlers = get_tiddlers_from_bag(bag)

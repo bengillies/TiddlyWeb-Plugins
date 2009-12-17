@@ -9,14 +9,14 @@ to use, add a tiddler to the named urls bag.
 give it a title corresponding to the url you want to use (using selector syntax)
 give it text corresponding to the url you want it to map to.
 
-point your browser to "/tiddlyurls/refresh" to register/update any urls or restart your server
+point your browser to "/urls/refresh" to register/update any urls or restart your server
 
 voila!
 
 """
-from tiddlyurls.config import config as tiddlyurls_config
-from tiddlyurls.register import register_urls, refresh_urls
-from tiddlyurls.twanager import url
+from tiddlywebplugins.urls.config import config as urls_config
+from tiddlywebplugins.urls.register import register_urls, refresh_urls
+from tiddlywebplugins.urls.twanager import url
 
 from tiddlyweb.config import merge_config
 from tiddlyweb import control
@@ -26,7 +26,7 @@ from tiddlywebplugins.utils import ensure_bag
 
 def init(config):
     #merge the custom config information
-    merge_config(config, tiddlyurls_config)
+    merge_config(config, urls_config)
     
     store = Store(config['server_store'][0], {'tiddlyweb.config':config})
     
@@ -39,7 +39,7 @@ def init(config):
     
     #provide a way to allow people to refresh their URLs
     if 'selector' in config:
-        config['selector'].add('/tiddlyurls/refresh', GET=refresh_urls)
+        config['selector'].add('/urls/refresh', GET=refresh_urls)
         
         #register the urls with selector
         register_urls(store, config)
