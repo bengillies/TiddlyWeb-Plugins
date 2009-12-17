@@ -22,17 +22,24 @@ from tiddlyweb.config import merge_config
 from tiddlyweb import control
 from tiddlyweb.store import Store
 
+from tiddlywebplugins.utils import ensure_bag
+
 def init(config):
     #merge the custom config information
     merge_config(config, tiddlyurls_config)
-
+    
+    store = Store(config['server_store'][0], {'tiddlyweb.config':config})
+    
+    #make sure the urls bag exists
+    bag_name = config['url_bag']
+    bag_policy = config['url_bag_policy']
+    bag_description = config['url_bag_description']
+    
+    ensure_bag(bag_name, store, bag_policy, bag_description)
+    
     #provide a way to allow people to refresh their URLs
     if 'selector' in config:
         config['selector'].add('/tiddlyurls/refresh', GET=refresh_urls)
-    
-        #get the store
-        store = Store(config['server_store'][0], {'tiddlyweb.config':config})
-
+        
         #register the urls with selector
         register_urls(store, config)
-

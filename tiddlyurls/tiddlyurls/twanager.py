@@ -34,6 +34,7 @@ def url(args):
         tiddler.bag = config['url_bag']
     except KeyError:
         tiddler.bag = tiddlyurls_config['url_bag']
+    
     tiddler.text = destination_url
     if redirect:
         tiddler.tags = [redirect]
