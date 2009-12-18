@@ -176,7 +176,7 @@ class Serialization(SerializationInterface):
             tags.add(tag)
         return list(tags)
 
-def update_handler(selector, path, new_handler):
+def update_handler(selector, path, new_handler, server_prefix):
     """
     Update an existing path handler in the selector
     map with new methods (in this case, POST). 
@@ -184,8 +184,10 @@ def update_handler(selector, path, new_handler):
     Taken and modified from tiddlywebplugins
     returns true if match successful
     """
+    regexed_path = selector.parser(path)
+    regexed_prefixed_path = selector.parser(server_prefix + path)
     for index, (regex, handler) in enumerate(selector.mappings):
-        if path == regex.pattern:
+        if regexed_path == regex.pattern or regexed_prefixed_path == regex.pattern:
             handler.update(new_handler)
             selector.mappings[index] = (regex, handler)
             return True
@@ -201,14 +203,17 @@ def init(config):
     """
     selector = config['selector']
     
-    if not update_handler(selector, selector.parser('/recipes/{recipe_name:segment}/tiddlers[.{format}]'), dict(POST=post_tiddler_to_container)):
-        update_handler(selector, selector.parser(config.get('server_prefix', '') + '/recipes/{recipe_name:segment}/tiddlers[.{format}]'), dict(POST=post_tiddler_to_container))
-    if not update_handler(selector, selector.parser('/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment}'), dict(POST=post_tiddler)):
-        update_handler(selector, selector.parser(config.get('server_prefix', '') + '/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment}'), dict(POST=post_tiddler))
-    if not update_handler(selector, selector.parser('/bags/{bag_name:segment}/tiddlers[.{format}]'), dict(POST=post_tiddler_to_container)):
-        update_handler(selector, selector.parser(config.get('server_prefix', '') + '/bags/{bag_name:segment}/tiddlers[.{format}]'), dict(POST=post_tiddler_to_container))
-    if not update_handler(selector, selector.parser('/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment}'), dict(POST=post_tiddler)):
-        update_handler(selector, selector.parser(config.get('server_prefix', '') + '/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment}'), dict(POST=post_tiddler))
+    if not update_handler(selector, '/recipes/{recipe_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container), config.get('server_prefix', '')):
+        logging.debug('/recipes/{recipe_name:segment}/tiddlers[.{format}] not found in selector. Not replaced.')
+        
+    if not update_handler(selector, '/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler), config.get('server_prefix', '')):
+        logging.debug('/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment} not found in selector. Not replaced.')
+        
+    if not update_handler(selector, '/bags/{bag_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container, config.get('server_prefix', '')):
+        logging.debug('/bags/{bag_name:segment}/tiddlers[.{format}] not found in selector. not replaced.')
+        
+    if not update_handler(selector, '/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler, config.get('server_prefix', '')):
+        logging.debug('/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment} not found in selector. Not replaced.')
 
     config['extension_types']['form'] = 'application/x-www-form-urlencoded'
     config['serializers']['application/x-www-form-urlencoded'] = ['form', 'application/x-www-form-urlencoded; charset=UTF-8']
