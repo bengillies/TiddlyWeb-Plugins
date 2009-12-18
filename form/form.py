@@ -4,7 +4,7 @@ put into the store.
 
 Also adds POST support to the standard set of URLs
 """
-
+import logging
 from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.model.recipe import Recipe
 from tiddlyweb.model.bag import Bag
@@ -181,12 +181,15 @@ def update_handler(selector, path, new_handler):
     Update an existing path handler in the selector
     map with new methods (in this case, POST). 
     
-    Taken and modified from tiddlywebplugins 
+    Taken and modified from tiddlywebplugins
+    returns true if match successful
     """
     for index, (regex, handler) in enumerate(selector.mappings):
-        if regex.match(path) is not None or selector.parser(path) == regex.pattern:
+        if path == regex.pattern:
             handler.update(new_handler)
             selector.mappings[index] = (regex, handler)
+            return True
+    return False
 
 def init(config):
     """
@@ -197,11 +200,15 @@ def init(config):
     and Content-Type: multipart/form-data 
     """
     selector = config['selector']
-
-    update_handler(selector, '/recipes/{recipe_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container))
-    update_handler(selector, '/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler))
-    update_handler(selector, '/bags/{bag_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container))
-    update_handler(selector, '/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler))
+    
+    if not update_handler(selector, selector.parser('/recipes/{recipe_name:segment}/tiddlers[.{format}]'), dict(POST=post_tiddler_to_container)):
+        update_handler(selector, selector.parser(config.get('server_prefix', '') + '/recipes/{recipe_name:segment}/tiddlers[.{format}]'), dict(POST=post_tiddler_to_container))
+    if not update_handler(selector, selector.parser('/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment}'), dict(POST=post_tiddler)):
+        update_handler(selector, selector.parser(config.get('server_prefix', '') + '/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment}'), dict(POST=post_tiddler))
+    if not update_handler(selector, selector.parser('/bags/{bag_name:segment}/tiddlers[.{format}]'), dict(POST=post_tiddler_to_container)):
+        update_handler(selector, selector.parser(config.get('server_prefix', '') + '/bags/{bag_name:segment}/tiddlers[.{format}]'), dict(POST=post_tiddler_to_container))
+    if not update_handler(selector, selector.parser('/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment}'), dict(POST=post_tiddler)):
+        update_handler(selector, selector.parser(config.get('server_prefix', '') + '/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment}'), dict(POST=post_tiddler))
 
     config['extension_types']['form'] = 'application/x-www-form-urlencoded'
     config['serializers']['application/x-www-form-urlencoded'] = ['form', 'application/x-www-form-urlencoded; charset=UTF-8']
