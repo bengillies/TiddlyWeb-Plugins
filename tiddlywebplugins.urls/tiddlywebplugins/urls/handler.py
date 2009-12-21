@@ -158,18 +158,25 @@ def figure_destination(url_part):
     
     return bag/recipe/tiddler name and extension
     """
-    regex = '^\/((?:recipes)|(?:bags))\/(\w+)\/tiddlers(?:\/(\w+))?(?:\.(\w+))?(?:\??.*)'
+    regex = '^\/((?:recipes)|(?:bags))\/([^\/]+)\/tiddlers([^\?]+)?(?:\??.*)'
     result = {}
     
     matches = re.findall(regex, url_part)
     for match in matches:
-        container_type, container_name, tiddler, extension = match
+        container_type, container_name, tiddler = match
         if container_type in ['recipes', 'bags']:
             result['%s_name' % container_type[:-1]] = container_name
         if tiddler:
-            result['tiddler_name'] = tiddler
-        if extension:
-            result['extension'] = extension
+            #split the tiddler to find the extension
+            if tiddler.startswith('/'):
+                #we have a tiddler name and optionally an extension
+                tiddler_and_extension = tiddler[1:].rsplit('.',1)
+                result['tiddler_name'] = tiddler_and_extension[0]
+                if len(tiddler_and_extension) == 2:
+                    result['extension'] = tiddler_and_extension[1]
+            elif tiddler.startswith('.'):
+                #we just have an extension
+                result['extension'] = tiddler[1:]
             
     if not result:
         raise InvalidDestinationURL('URL \'%s\' is incorrectly formatted' % url_part)
