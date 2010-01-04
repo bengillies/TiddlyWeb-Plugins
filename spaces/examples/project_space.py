@@ -13,7 +13,8 @@ user_space.py)
 """
 from space import Space
 
-from tiddlyweb.manage import _store, make_command
+from tiddlyweb.manage import make_command
+from tiddlyweb.commands import _store
 
 import simplejson as json
 

@@ -5,7 +5,8 @@ import the contents at the given uri to
 the given bag as a binary tiddler
 """
 from tiddlyweb.model.tiddler import Tiddler
-from tiddlyweb.manage import _store, make_command
+from tiddlyweb.manage import make_command
+from tiddlyweb.commands import _store
 
 import urllib
 import sys

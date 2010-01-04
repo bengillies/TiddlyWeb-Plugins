@@ -3,7 +3,7 @@ AUTHOR = 'Ben Gillies'
 AUTHOR_EMAIL = 'bengillies@gmail.com'
 NAME = 'tiddlywebplugins.bimport'
 DESCRIPTION = 'Import binary content into TiddlyWeb via twanager'
-VERSION = '0.1'
+VERSION = '0.2'
 
 
 import os
