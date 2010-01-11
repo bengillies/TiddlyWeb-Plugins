@@ -10,7 +10,7 @@ from tiddlywebpages.config import config as twp_config
 
 from tiddlyweb.store import Store
 from tiddlyweb import control
-from tiddlyweb.config import merge_config
+from tiddlyweb.util import merge_config
 
 
 def init(config):
