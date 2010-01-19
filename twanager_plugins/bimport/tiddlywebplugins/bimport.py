@@ -6,8 +6,8 @@ the given bag as a binary tiddler
 """
 from tiddlyweb.model.tiddler import Tiddler
 from tiddlyweb.manage import make_command
-from tiddlyweb.commands import _store
 
+from tiddlywebplugins.utils import get_store
 import urllib
 import sys
 
@@ -31,7 +31,8 @@ def bimport(args):
     tiddler.text = data
     tiddler.bag = bag
     
-    _store().put(tiddler)
+    store = get_store(config)
+    store.put(tiddler)
 
 def init(config_in):
     global config

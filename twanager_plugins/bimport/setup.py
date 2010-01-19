@@ -3,7 +3,7 @@ AUTHOR = 'Ben Gillies'
 AUTHOR_EMAIL = 'bengillies@gmail.com'
 NAME = 'tiddlywebplugins.bimport'
 DESCRIPTION = 'Import binary content into TiddlyWeb via twanager'
-VERSION = '0.2'
+VERSION = '0.3'
 
 
 import os
@@ -23,5 +23,5 @@ setup(
     packages = find_packages(exclude='test'),
     author_email = AUTHOR_EMAIL,
     platforms = 'Posix; MacOS X; Windows',
-    install_requires = ['setuptools', 'tiddlyweb']
+    install_requires = ['setuptools', 'tiddlyweb', 'tiddlywebplugins.utils']
     )
