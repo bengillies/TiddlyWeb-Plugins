@@ -64,10 +64,10 @@ def like_parse(command):
     
     if args.startswith('!'):
         args = args.replace('!', '', 1)
-        def selector(tiddlers):
+        def selector(tiddlers, indexable=False, environ=None):
             return like(attribute, args, tiddlers, negate=True)
     else:    
-        def selector(tiddlers):
+        def selector(tiddlers, indexable=False, environ=None):
             return like(attribute, args, tiddlers)
             
     return selector

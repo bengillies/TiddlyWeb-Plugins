@@ -86,7 +86,7 @@ def related_parse(command):
     attribute, args = command.split(':', 1)
     args = args.split(',')
     
-    def relator(tiddlers):
+    def relator(tiddlers, indexable=False, environ=None):
         return match_related_articles(attribute, args, tiddlers)
     
     return relator
