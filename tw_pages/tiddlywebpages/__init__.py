@@ -8,10 +8,10 @@ from tiddlywebpages.register import refresh, register_config, \
 from tiddlywebpages.filters import TW_PAGES_FILTERS
 from tiddlywebpages.config import config as twp_config
 
-from tiddlyweb.store import Store
 from tiddlyweb import control
 from tiddlyweb.util import merge_config
 
+from tiddlywebplugins.utils import get_store
 
 def init(config):
     """
@@ -25,7 +25,7 @@ def init(config):
     config['selector'].add('/tiddlywebpages/refresh', GET=refresh)
                       
     #get the store
-    store = Store(config['server_store'][0], {'tiddlyweb.config':config})
+    store = get_store(config)
     
     #set the default config info
     BAG_OF_TEMPLATES = config['tw_pages']['template_bag']
