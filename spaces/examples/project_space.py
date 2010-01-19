@@ -14,8 +14,8 @@ user_space.py)
 from space import Space
 
 from tiddlyweb.manage import make_command
-from tiddlyweb.commands import _store
 
+from tiddlywebplugins.utils import get_store
 import simplejson as json
 
 PROJECT = """{
@@ -101,8 +101,9 @@ def addproject(args):
     this_project = json.loads(this_project)
     
     #create the space
-    project_space = Space({'tiddlyweb.store': _store()})
+    project_space = Space({'tiddlyweb.store': get_store(config)})
     project_space.create_space(this_project)
 
-def init(config):
-    pass
+def init(config_in):
+    global config
+    config = config_in
