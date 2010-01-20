@@ -1,88 +1,74 @@
-from tiddlyweb.web.validator import TIDDLER_VALIDATORS              
-from tiddlyweb.model.tiddler import Tiddler             
-import logging
+"""
+sanitize any input that has unauthorised javascript/html tags in it
+
+Let through only tags and attributes in the whitelists allowed_tags
+and allowed_attributes. These can be specified manually in
+tiddlywebconfig.py.
+"""
+from tiddlyweb.web.validator import TIDDLER_VALIDATORS
+
+from tiddlyweb.manage import merge_config
+
 from BeautifulSoup import BeautifulSoup, Comment
 import re
 
-"""
-sanitise any input that has unauthorised javascript/html tags in it
+VALIDATOR_CONFIG = {
+    'allowed_tags': ['html', 'p', 'i', 'strong', 'b', 'u', 'a', 'h1', 'h2',
+        'h3', 'h4', 'h5', 'h6', 'pre', 'br', 'img', 'span', 'em', 'strike',
+        'sub', 'sup', 'address', 'font', 'table', 'tbody', 'tr', 'td', 'ol',
+        'ul', 'li', 'div'],
+    'allowed_attributes': ['href', 'src', 'alt', 'title']
+}
 
-Let through only tags and attributes in the whitelists ALLOWED_TAGS and ALLOWED_ATTRIBUTES
-"""
-
-ALLOWED_TAGS=[ 
-    'html',
-    'p',
-    'i',
-    'strong',
-    'b',
-    'u',
-    'a',
-    'h1',
-    'h2',
-    'h3',
-    'h4',
-    'h5',
-    'h6',
-    'pre',
-    'br',
-    'img',
-    'span',
-    'em',
-    'strike',
-    'sub',
-    'sup',
-    'address',
-    'font',
-    'table',
-    'tbody',
-    'tr',
-    'td',
-    'ol',
-    'ul',
-    'li',
-    'div'
-]
-ALLOWED_ATTRIBUTES=[
-    'href',
-    'src',
-    'alt',
-    'title'
-] 
-
-def sanitise_html(value):                                          
+def check_html(value, environ):
+    """
+    This function does the actual validation.
+    environ must have 'allowed_tags' and
+    'allowed_attributes' in it.
+    
+    Removes unwanted tags, attributes and
+    comments.
+    
+    Value should be the string to be validated.
+    """
     if type(value) != unicode:
         value = unicode(value)
     
-    #match dangerous attribute values (eg javascript:) with regex
-    r = re.compile(r'[\s]*(&#x.{1,7})?'.join(list('javascript:'))) 
+    url_regex = re.compile(r'[\s]*(&#x.{1,7})?'.join(list('javascript:'))) 
     
-    #turn the input into a BeautifulSoup parse tree
-    soup = BeautifulSoup(value) 
+    soup = BeautifulSoup(value)
     
-    #get all HTML comments (<!-- -->) and remove them
     for comment in soup.findAll(text=lambda text: isinstance(text, Comment)): 
         comment.extract()                                        
     
-    #Check all tags against the allowed set and remove any that are not found
     for tag in soup.findAll(True):
-        if tag.name not in ALLOWED_TAGS:
+        if tag.name not in environ['tiddlyweb.config']['allowed_tags']:
             tag.hidden = True
-        #check that attribute/value pairs against the allowed list and regex and cut any that are not allowed
-        tag.attrs = [(attr, r.sub('', val)) for attr, val in tag.attrs
-                     if attr in ALLOWED_ATTRIBUTES]
+        tag.attrs = [(attr, url_regex.sub('', val)) for attr, val in tag.attrs
+            if attr in environ['tiddlyweb.config']['allowed_attributes']]
+                     
     return soup.renderContents().decode('utf8')
 
-def sanitise_xss(tiddler,environ):
-    for field,value in tiddler.fields.iteritems():     
-        tiddler.fields[field] = sanitise_html(value)
-    tiddler.text = sanitise_html(tiddler.text)      
-    tiddler.tags = map(sanitise_html,tiddler.tags)
-    tiddler.title = sanitise_html(tiddler.title)
 
-def init(config_in):
+def validate(tiddler, environ):
+    """
+    Entry point for validator. Strip any unwanted
+    tags or attributes.
+    
+    Check all fields, title, tags and text.
+    """
+    for field, value in tiddler.fields.iteritems():     
+        tiddler.fields[field] = check_html(value, environ)
+    tiddler.text = check_html(tiddler.text, environ)
+    tiddler.tags = [check_html(tag, environ) for tag in tiddler.tags]
+    tiddler.title = check_html(tiddler.title, environ)
+    
+
+def init(config):
     """
     init function
     """
-    TIDDLER_VALIDATORS.append(sanitise_xss)
+    merge_config(config, VALIDATOR_CONFIG)
+    
+    TIDDLER_VALIDATORS.append(validate)
 
