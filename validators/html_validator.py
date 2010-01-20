@@ -5,7 +5,7 @@ Let through only tags and attributes in the whitelists allowed_tags
 and allowed_attributes. These can be specified manually in
 tiddlywebconfig.py.
 """
-from tiddlyweb.web.validator import TIDDLER_VALIDATORS
+from tiddlyweb.web.validator import TIDDLER_VALIDATORS, InvalidTiddlerError
 
 from tiddlyweb.manage import merge_config
 
@@ -32,7 +32,10 @@ def check_html(value, environ):
     Value should be the string to be validated.
     """
     if type(value) != unicode:
-        value = unicode(value)
+        try:
+            value = unicode(value)
+        except UnicodeDecodeError:
+            raise InvalidTiddlerError('HTML Validation Failed: contents of tiddler not a valid string.')
     
     url_regex = re.compile(r'[\s]*(&#x.{1,7})?'.join(list('javascript:'))) 
     
