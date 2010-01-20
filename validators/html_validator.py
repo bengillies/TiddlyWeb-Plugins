@@ -51,6 +51,8 @@ ALLOWED_ATTRIBUTES=[
 ] 
 
 def sanitise_html(value):                                          
+    if type(value) != unicode:
+        value = unicode(value)
     
     #match dangerous attribute values (eg javascript:) with regex
     r = re.compile(r'[\s]*(&#x.{1,7})?'.join(list('javascript:'))) 
