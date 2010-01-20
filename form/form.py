@@ -209,10 +209,10 @@ def init(config):
     if not update_handler(selector, '/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler), config.get('server_prefix', '')):
         logging.debug('/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment} not found in selector. Not replaced.')
         
-    if not update_handler(selector, '/bags/{bag_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container, config.get('server_prefix', '')):
+    if not update_handler(selector, '/bags/{bag_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container), config.get('server_prefix', '')):
         logging.debug('/bags/{bag_name:segment}/tiddlers[.{format}] not found in selector. not replaced.')
         
-    if not update_handler(selector, '/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler, config.get('server_prefix', '')):
+    if not update_handler(selector, '/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler), config.get('server_prefix', '')):
         logging.debug('/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment} not found in selector. Not replaced.')
 
     config['extension_types']['form'] = 'application/x-www-form-urlencoded'
