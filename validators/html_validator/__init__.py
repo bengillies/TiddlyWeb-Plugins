@@ -1,5 +1,5 @@
 """
-sanitise any input that has unauthorised javascript/html tags in it
+sanitize any input that has unauthorised javascript/html tags in it
 
 Let through only tags and attributes in the whitelists allowed_elements 
 and allowed_attributes.
@@ -9,15 +9,7 @@ These can be specified in tiddlywebconfig.py.
 from sanitizer import update_whitelist, sanitize_html_fragment
 
 from tiddlyweb.web.validator import TIDDLER_VALIDATORS
-from tiddlyweb.model.tiddler import Tiddler
 
-
-def sanitize_html_fragment(fragment):
-    """
-    Sanitize an html fragment, returning a copy of the fragment,
-    cleaned up. We use the newly defined Sanitizer
-    """
-    
 
 def sanitize(tiddler,environ):
     """

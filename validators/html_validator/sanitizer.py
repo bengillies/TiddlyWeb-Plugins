@@ -1,5 +1,5 @@
 """
-sanitise any input that has unauthorised javascript/html tags in it
+sanitize any input that has unauthorised javascript/html tags in it
 
 Let through only tags and attributes in the whitelists allowed_elements 
 and allowed_attributes.
@@ -37,7 +37,7 @@ def update_whitelist(config):
     HTMLValidator.allowed_attributes = config.get('allowed_attributes', \
         HTMLValidator.allowed_attributes)
 
-def sanitize_html_fragment(fragment, flag=False):
+def sanitize_html_fragment(fragment):
     """
     Sanitize an html fragment, returning a copy of the fragment,
     cleaned up. We use the newly defined Sanitizer
