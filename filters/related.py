@@ -4,10 +4,9 @@ anything that is related byt the supplied fields, sorted in order with most rela
 
 eg: 
 
-/bags/foo/tiddlers?related=bar:title,tags
+/bags/foo/tiddlers?related=title,tags:bar
 
 will return all tiddlers related (by title and tags) to the tiddler "bar", ranked in most related first order
-
 """
 
 from tiddlyweb.filters import FILTER_PARSERS, parse_for_filters, recursive_filter
@@ -83,11 +82,11 @@ def match_related_articles(title, matches, tiddlers):
 
 def related_parse(command):
     
-    attribute, args = command.split(':', 1)
-    args = args.split(',')
+    relate_fields, relate_tiddler = command.split(':', 1)
+    relate_fields = relate_fields.split(',')
     
     def relator(tiddlers, indexable=False, environ=None):
-        return match_related_articles(attribute, args, tiddlers)
+        return match_related_articles(relate_tiddler, relate_fields, tiddlers)
     
     return relator
 
