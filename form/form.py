@@ -20,6 +20,7 @@ from tiddlyweb import control
 from tiddlyweb.web import util as web
 from tiddlyweb.model.policy import PermissionsError
 from cgi import FieldStorage
+from socket import timeout
 import re
 import urllib
 from uuid import uuid4
