@@ -43,7 +43,10 @@ def post_tiddler_to_container(environ, start_response):
     we have included the tiddler name in the form,
     so get that and carry on as normal
     """
-    form = set_form(environ)
+    try:
+        form = set_form(environ)
+    except timeout:
+        return []
     if 'file' in form and getattr(form['file'], 'file', None):
         tiddler_name = urllib.quote(form['file'].filename)
     elif 'title' in form:
@@ -109,7 +112,10 @@ def _post_tiddler(environ, start_response, tiddler, form=None):
             redirect = None
         if content_type == 'application/x-www-form-urlencoded' or content_type == 'multipart/form-data':
             if not form:
-                form = set_form(environ)
+                try:
+                    form = set_form(environ)
+                except timeout:
+                    return []
             serializer = Serializer('form', environ)
             serializer.object = tiddler
             serializer.from_string(form)
