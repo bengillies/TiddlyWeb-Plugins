@@ -1,0 +1,53 @@
+tiddlywebplugins.form
+
+Provides a Serializer to transform HTML form-data into an object that can be put into the store.
+
+Also adds POST support to the standard set of URLs and support for uploading binary files.
+
+URLs with POST support are:
+
+    /bags/foo/tiddlers
+    /bags/foo/tiddlers/bar
+    /recipes/foo/tiddlers
+    /recipes/foo/tiddlers/bar
+
+To use, add tiddlywebplugins.form to your system_plugins in tiddlywebconfig.py.
+
+You can then POST tiddlers to the server as follows:
+
+1) set up an HTML form with any named elements. Supported names include:
+
+    title - tiddler.title (this is optional and, depends upon which URL you POST to. Additionally, if you POST to /bags/foo/tiddlers without a title, you will get a UUID title instead).
+    text - tiddler.text
+    tags - tiddler.tags (this can be a list (eg checkboxes), or a string formatted as per standard TiddlyWiki tags).
+    created - tiddler.created
+    modified - tiddler.modified
+    type - tiddler.type
+    file - this is a special case and represents a binary file so must take the form of an HTML <input type="file" /> tag. If this is specified, you may include tags, but anything else will be ignored and derived from the uploaded file.
+
+2) Content type (enctype attribute in HTML form lingo) of the form must be either appilcation/x-www-form-urlencoded or multipart/form-data (if uploading a binary file)
+
+3) POST the form (ie - set the method to POST) to one of the above URLs (ie - set the action attribute), replacing foo and bar as required.
+
+4) Optionally specificy a redirect to redirect to a different page.
+
+Example Usage:
+
+say you want to POST a new tiddler to the bag "common", you might include the following HTML:
+
+<form action="/bags/common/tiddlers" method="POST">
+<input type="text" name="title" value="New Tiddler" />
+<textarea name="text" rows="5" cols="40"></textarea>
+<input type="text" name="tags" />
+<input type="submit" value="Save" />
+</form>
+
+Alternatively, you may want to upload a binary file to the bag "common":
+
+<form action="/bags/common/tiddlers" method="POST" enctype="multipart/form-data">
+<input type="file" name="file" />
+<input type="submit" value="Upload" />
+</form>
+
+
+There is also a Binary Upload Plugin for TiddlyWiki designed specifically to work with tiddlyweplugins.form. You can find it at http://svn.tiddlywiki.org/Trunk/contributors/BenGillies/TiddlyWeb/Plugins/Binary/tiddlers/BinaryUploadPlugin.tid
