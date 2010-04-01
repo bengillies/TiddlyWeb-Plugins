@@ -5,17 +5,15 @@ put into the store.
 Also adds POST support to the standard set of URLs
 """
 import logging
-from tiddlyweb.model.tiddler import Tiddler
-from tiddlyweb.model.recipe import Recipe
 from tiddlyweb.model.bag import Bag
 from tiddlyweb.web.handler.tiddler import \
         _determine_tiddler, _check_bag_constraint, _validate_tiddler_headers, _validate_tiddler_content, _tiddler_etag
 from tiddlyweb.store import \
-        NoTiddlerError, NoBagError, NoRecipeError, StoreMethodNotImplemented
+        NoTiddlerError, NoBagError, StoreMethodNotImplemented
 from tiddlyweb.serializer import Serializer, TiddlerFormatError
 from tiddlyweb.serializations import SerializationInterface 
 from tiddlyweb.web.http import \
-        HTTP404, HTTP415, HTTP412, HTTP409, HTTP400, HTTP304
+        HTTP404, HTTP412, HTTP409, HTTP400
 from tiddlyweb import control
 from tiddlyweb.web import util as web
 from tiddlyweb.model.policy import PermissionsError
@@ -25,34 +23,37 @@ import re
 import urllib
 from uuid import uuid4
 
-def set_form(environ):
-    if environ['tiddlyweb.type'] == 'application/x-www-form-urlencoded':
-        return environ['tiddlyweb.query']
-    elif environ['tiddlyweb.type'] == 'multipart/form-data':
-        return FieldStorage(fp=environ['wsgi.input'], environ=environ)
+def get_form(environ):
+    form = {
+        'application/x-www-form-urlencoded': environ['tiddlyweb.query'],
+        'multipart/form-data': FieldStorage(fp=environ['wsgi.input'], environ=environ)
+    }
         
-    return None
+    return form.get(environ['tiddlyweb.type'])
     
 def retrieve_item(obj, key): 
-    if type(obj) == FieldStorage:
+    if getattr(obj, 'getfirst', None):
         return obj.getfirst(key)
     else:
         return obj[key][0]
 
 def post_tiddler_to_container(environ, start_response):
     """
+    entry point for recipes/foo/tiddlers or bags/foo/tiddlers
+
     we have included the tiddler name in the form,
     so get that and carry on as normal
     """
     try:
-        form = set_form(environ)
+        form = get_form(environ)
     except timeout:
         return []
-    if 'file' in form and getattr(form['file'], 'file', None):
-        tiddler_name = urllib.quote(form['file'].filename)
-    elif 'title' in form:
-        tiddler_name = urllib.quote(retrieve_item(form, 'title'))
-    else:
+
+    get_name = lambda: retrieve_item(form, 'title') if 'title' in form else form['file'].filename 
+
+    try:
+        tiddler_name = urllib.quote(get_name())
+    except KeyError:
         tiddler_name = str(uuid4())
     
     environ['wsgiorg.routing_args'][1]['tiddler_name'] = tiddler_name
@@ -63,6 +64,8 @@ def post_tiddler_to_container(environ, start_response):
 
 def post_tiddler(environ, start_response):
     """
+    entry point when tiddler name is in url
+
     equivalent of put function in tiddlyweb.web.handler.tiddler
     check user has permission to put data in
     validate data
@@ -115,14 +118,14 @@ def _post_tiddler(environ, start_response, tiddler, form=None):
         if content_type == 'application/x-www-form-urlencoded' or content_type == 'multipart/form-data':
             if not form:
                 try:
-                    form = set_form(environ)
+                    form = get_form(environ)
                 except timeout:
                     return []
-            serializer = Serializer('form', environ)
+            serializer = Serializer('tiddlywebplugins.form', environ)
             serializer.object = tiddler
             serializer.from_string(form)
         else:
-            raise HTTP404('Unable to put tiddler, %s. %s' % (tiddler.title, exc))
+            raise HTTP404('Unable to put tiddler, %s. Incorrect Content Type.' % tiddler.title)
             
         user = environ['tiddlyweb.usersign']['name']
         if not user == 'GUEST':
@@ -163,6 +166,8 @@ class Serialization(SerializationInterface):
             if not my_file.file: raise TiddlerFormatError
             tiddler.type = my_file.type
             tiddler.text = my_file.file.read()
+            if 'tags' in form:
+                tiddler.tags = self.create_tag_list(retrieve_item(form, 'tags'))
         else:
             keys = ['created', 'modified', 'modifier', 'text', 'type']
             for key in form:
@@ -198,8 +203,9 @@ def update_handler(selector, path, new_handler, server_prefix):
         if regexed_path == regex.pattern or regexed_prefixed_path == regex.pattern:
             handler.update(new_handler)
             selector.mappings[index] = (regex, handler)
-            return True
-    return False
+            return
+
+    logging.debug('%s not found in URL mapping. Not replaced' % path)
 
 def init(config):
     """
@@ -211,17 +217,10 @@ def init(config):
     """
     selector = config['selector']
     
-    if not update_handler(selector, '/recipes/{recipe_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container), config.get('server_prefix', '')):
-        logging.debug('/recipes/{recipe_name:segment}/tiddlers[.{format}] not found in selector. Not replaced.')
-        
-    if not update_handler(selector, '/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler), config.get('server_prefix', '')):
-        logging.debug('/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment} not found in selector. Not replaced.')
-        
-    if not update_handler(selector, '/bags/{bag_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container), config.get('server_prefix', '')):
-        logging.debug('/bags/{bag_name:segment}/tiddlers[.{format}] not found in selector. not replaced.')
-        
-    if not update_handler(selector, '/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler), config.get('server_prefix', '')):
-        logging.debug('/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment} not found in selector. Not replaced.')
+    update_handler(selector, '/recipes/{recipe_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container), config.get('server_prefix', ''))
+    update_handler(selector, '/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler), config.get('server_prefix', ''))
+    update_handler(selector, '/bags/{bag_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container), config.get('server_prefix', ''))
+    update_handler(selector, '/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler), config.get('server_prefix', ''))
 
     config['extension_types']['form'] = 'application/x-www-form-urlencoded'
     config['serializers']['application/x-www-form-urlencoded'] = ['form', 'application/x-www-form-urlencoded; charset=UTF-8']
