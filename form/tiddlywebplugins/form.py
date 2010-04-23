@@ -3,6 +3,12 @@ Provides a Serializer to transform HTML form-data into an object that can be
 put into the store.
 
 Also adds POST support to the standard set of URLs
+
+NOTE - A large proportion of this code will disappear when TiddlyWeb 1.1 is released.
+This is due to improved handling in TiddlyWeb that allows items to be put into the store
+from any content type as long as their is a serialization for it. Pre 1.1 TiddlyWeb
+requires the content type to be text/plain or application/json only, hence most of this
+code is just a replication of TiddlyWeb core with subtle changes to it.
 """
 import logging
 from tiddlyweb.model.bag import Bag
