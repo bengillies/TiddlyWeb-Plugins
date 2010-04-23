@@ -23,6 +23,7 @@ import re
 import urllib
 from uuid import uuid4
 
+
 def get_form(environ):
     form = {
         'application/x-www-form-urlencoded': environ['tiddlyweb.query'],
@@ -62,19 +63,6 @@ def post_tiddler_to_container(environ, start_response):
     
     return _post_tiddler(environ, start_response, tiddler, form)
 
-def post_tiddler(environ, start_response):
-    """
-    entry point when tiddler name is in url
-
-    equivalent of put function in tiddlyweb.web.handler.tiddler
-    check user has permission to put data in
-    validate data
-    pass to the form serializer for turning into a tiddler
-    """
-    tiddler = _determine_tiddler(environ, control.determine_tiddler_bag_from_recipe)
-    
-    return _post_tiddler(environ, start_response, tiddler)
-    
 def _post_tiddler(environ, start_response, tiddler, form=None):
     """
     put the tiddler into the store. 
@@ -169,7 +157,7 @@ class Serialization(SerializationInterface):
             if 'tags' in form:
                 tiddler.tags = self.create_tag_list(retrieve_item(form, 'tags'))
         else:
-            keys = ['created', 'modified', 'modifier', 'text', 'type']
+            keys = ['created', 'modified', 'modifier', 'text']
             for key in form:
                 if key in keys:
                     setattr(tiddler, key, retrieve_item(form, key))
@@ -218,9 +206,7 @@ def init(config):
     selector = config['selector']
     
     update_handler(selector, '/recipes/{recipe_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container), config.get('server_prefix', ''))
-    update_handler(selector, '/recipes/{recipe_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler), config.get('server_prefix', ''))
     update_handler(selector, '/bags/{bag_name:segment}/tiddlers[.{format}]', dict(POST=post_tiddler_to_container), config.get('server_prefix', ''))
-    update_handler(selector, '/bags/{bag_name:segment}/tiddlers/{tiddler_name:segment}', dict(POST=post_tiddler), config.get('server_prefix', ''))
 
     config['extension_types']['form'] = 'application/x-www-form-urlencoded'
     config['serializers']['application/x-www-form-urlencoded'] = ['form', 'application/x-www-form-urlencoded; charset=UTF-8']

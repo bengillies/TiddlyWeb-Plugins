@@ -7,9 +7,7 @@ Also adds POST support to the standard set of URLs and support for uploading bin
 URLs with POST support are:
 
     /bags/foo/tiddlers
-    /bags/foo/tiddlers/bar
     /recipes/foo/tiddlers
-    /recipes/foo/tiddlers/bar
 
 To use, add tiddlywebplugins.form to your system_plugins in tiddlywebconfig.py.
 
@@ -22,12 +20,11 @@ You can then POST tiddlers to the server as follows:
     tags - tiddler.tags (this can be a list (eg checkboxes), or a string formatted as per standard TiddlyWiki tags).
     created - tiddler.created
     modified - tiddler.modified
-    type - tiddler.type
-    file - this is a special case and represents a binary file so must take the form of an HTML <input type="file" /> tag. If this is specified, you may include tags, but anything else will be ignored and derived from the uploaded file.
+    file - this is a special case and represents a binary file so must take the form of an HTML <input type="file" /> tag. If this is specified, you may include tags and a title, but anything else will be ignored.
 
 2) Content type (enctype attribute in HTML form lingo) of the form must be either appilcation/x-www-form-urlencoded or multipart/form-data (if uploading a binary file)
 
-3) POST the form (ie - set the method to POST) to one of the above URLs (ie - set the action attribute), replacing foo and bar as required.
+3) POST the form (ie - set the method to POST) to one of the above URLs (ie - set the action attribute), replacing foo as required.
 
 4) Optionally specificy a redirect to redirect to a different page.
 
